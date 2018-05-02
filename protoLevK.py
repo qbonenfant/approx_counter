@@ -1,5 +1,5 @@
 # coding=utf-8
-
+import sys
 global BASES
 
 BASES = set(["A", "T", "C", "G"])
@@ -31,7 +31,10 @@ def insertion(sequence):
 
 
 allKmer = set()
-with open("kmerList.txt", "r") as f:
+
+filename = sys.argv[1] if len(sys.argv)>= 1 else "nope.txt"
+
+with open(filename, "r") as f:
     for seq1 in f:
         seq1 = seq1.rstrip("\n")
         oneErr = insertion(seq1) + substitution(seq1) + deletion(seq1)
