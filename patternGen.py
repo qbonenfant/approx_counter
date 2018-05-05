@@ -3,7 +3,7 @@
 import random
 
 # Pattern we will try to find
-pattern = "ATGCCTCTCTATCTAGCAGCTACGACATTCTATCGCTAGCATGCTAGCA"
+pattern = "ATCGGTCAATCGGTCGAGCTACTATCTAAAAGTTTTTTAAG"
 
 global alpha
 alpha = set(["A", "T", "C", "G"])
@@ -26,7 +26,7 @@ def mutateSeq(seq, treshold):
 
 def paddSides(seq, size):
     ln = len(seq)
-    cut = random.randint(0, size - ln)
+    cut = random.randint(0, min(size - ln, 20 ))
     insert = ""
     for i in range(size - ln):
         insert += list(alpha)[random.randint(0, 3)]
@@ -34,10 +34,11 @@ def paddSides(seq, size):
     return(insert[0:cut] + seq + insert[cut:])
 
 
-out = open("generatedRandomStarts10k.txt", "w")
+out = open("generated_10k_100_15p.txt", "w")
 for i in range(10000):
     out.write(">Generated_" + str(i) + "_random")
     out.write("\n")
     out.write(paddSides(mutateSeq(pattern, 0.15), 100))
+    #out.write(paddSides(pattern,100))
     out.write("\n")
 out.close()

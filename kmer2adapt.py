@@ -1,6 +1,6 @@
 # coding=UTF-8
 import networkx as nx
-
+import sys
 # naive version: overlap of most common kmer
 
 G = nx.DiGraph()
@@ -41,13 +41,15 @@ def graphOverlaps(main, potential, limit, nxGraph):
 
 
 kmers = []
-with open("comptageFullKmer.txt", "r") as f:
+filename = sys.argv[1] if len(sys.argv)>=2 else "nope.txt"
+minOverlap = int(sys.argv[2]) if len(sys.argv)>=3 else 10
+with open(filename, "r") as f:
     f.readline()
     for line in f:
         nb, kmer = line.replace("\n", "").split(" ; ")
         kmers.append(kmer)
 
-cutoff = 5
+cutoff = minOverlap
 
 # for kmer1 in kmers:
 #     for kmer2 in kmers:

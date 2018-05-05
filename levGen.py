@@ -32,17 +32,18 @@ def insertion(sequence):
 
 allKmer = set()
 
-filename = sys.argv[1] if len(sys.argv)>= 1 else "nope.txt"
+filename = sys.argv[1] if len(sys.argv) >= 2 else "nope.txt"
+k = sys.argv[2] if len(sys.argv) >= 3 else 2
 
 with open(filename, "r") as f:
     for seq1 in f:
-        seq1 = seq1.rstrip("\n")
+        seq1 = seq1.rstrip("\n").split(" ")[0]
         oneErr = insertion(seq1) + substitution(seq1) + deletion(seq1)
         for seq in oneErr:
             allKmer |= set(insertion(seq) +
                            substitution(seq) + deletion(seq))
 
-out = open("selectedKmer.txt", "w")
+out = open(".".join(filename.split(".")[:-1]) + "_neighbors.fasta", "w")
 for i, kmer in enumerate(allKmer):
     out.write(">kmer_" + str(i) + " \n")
     out.write(kmer + " \n")
