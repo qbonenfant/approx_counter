@@ -52,7 +52,7 @@ void findAdapt(const std::string& filename, std::string& kmerFile , const int& n
 
 
     // Constants (should be in upper case)
-    const int maxErr  =  2;              // Max number of errors, argument of the function
+    const int maxErr  =  1;              // Max number of errors, argument of the function
     const int nbRead  = length(ids);     // Number of reads in the file
     const int lenRead = length(seqs[0]);  // size of the sequence to search in
 

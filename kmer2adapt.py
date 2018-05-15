@@ -21,6 +21,7 @@ def haveOverlap(main, potential, limit):
                 overlapped = potential + main[i:]
     return(overlapped)
 
+
 def graphOverlaps(main, potential, limit, nxGraph):
 
     lm = len(main)
@@ -33,16 +34,18 @@ def graphOverlaps(main, potential, limit, nxGraph):
                 nxGraph.add_node(main)
                 nxGraph.add_node(potential)
                 nxGraph.add_edge(main, potential, weigth=i)
+                break
 
             elif potential[lp - i:] == main[:i]:
                 nxGraph.add_node(main)
                 nxGraph.add_node(potential)
                 nxGraph.add_edge(potential, main, weigth=i)
+                break
 
 
 kmers = []
-filename = sys.argv[1] if len(sys.argv)>=2 else "nope.txt"
-minOverlap = int(sys.argv[2]) if len(sys.argv)>=3 else 10
+filename = sys.argv[1] if len(sys.argv) >= 2 else "nope.txt"
+minOverlap = int(sys.argv[2]) if len(sys.argv) >= 3 else 10
 with open(filename, "r") as f:
     f.readline()
     for line in f:
@@ -51,31 +54,31 @@ with open(filename, "r") as f:
 
 cutoff = minOverlap
 
-# for kmer1 in kmers:
-#     for kmer2 in kmers:
-#         graphOverlaps(kmer1, kmer2, cutoff, G)
-# nx.write_graphml(G, "exportedGraph.graphml")
+for kmer1 in kmers:
+    for kmer2 in kmers:
+        graphOverlaps(kmer1, kmer2, cutoff, G)
+nx.write_graphml(G, "exportedGraph.graphml")
 
-longestPattern = []
-loop = 0
-while(len(kmers)>0 or loop >= 1000):
-    newSeq = kmers[0]
-    kmers.pop(0)
-    found = True
-    while found:
-        found = False
-        currentElem = ""
-        for elem in kmers:
-            ovl = haveOverlap(newSeq, elem, cutoff)
-            if(ovl != ''):
-                currentElem = elem
-                newSeq = ovl
-                found = True
-                break
-        if(found):
-            kmers.pop(kmers.index(currentElem))
-    longestPattern.append(newSeq)
-    loop += 1
-results = list(reversed(sorted(longestPattern, key = lambda x: len(x))))
-for elem in results[:10]:
-    print(elem)
+# longestPattern = []
+# loop = 0
+# while(len(kmers) > 0 and loop <= 10000):
+#     newSeq = kmers[0]
+#     kmers.pop(0)
+#     found = True
+#     while found:
+#         found = False
+#         currentElem = ""
+#         for elem in kmers:
+#             ovl = haveOverlap(newSeq, elem, cutoff)
+#             if(ovl != ''):
+#                 currentElem = elem
+#                 newSeq = ovl
+#                 found = True
+#                 break
+#         if(found):
+#             kmers.pop(kmers.index(currentElem))
+#     longestPattern.append(newSeq)
+#     loop += 1
+# results = list(reversed(sorted(longestPattern, key=lambda x: len(x))))
+# for elem in results[:10]:
+#     print(elem)
