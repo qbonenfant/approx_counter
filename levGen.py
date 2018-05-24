@@ -38,8 +38,9 @@ k = int(sys.argv[2]) if len(sys.argv) >= 3 else 2
 
 with open(filename, "r") as f:
     for seq in f:
-        seq = seq.rstrip("\n").split(" ")[0]
-        allKmer.add(seq)
+        if(seq[0]!=">"):
+            seq = seq.rstrip("\n").split(" ")[0]
+            allKmer.add(seq)
 
 nbErr = 0
 while(nbErr != k):

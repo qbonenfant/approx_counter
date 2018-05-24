@@ -14,55 +14,58 @@
 using namespace seqan;
 
 
-typedef std::map< Infix<String<Dna> >::Type , int>  TKmerCounter;
+typedef std::map< Dna5String, int>  TKmerCounter;
 
 
 
 
-DnaString loadGenome(auto const & filename)
+StringSet<DnaString> loadGenome(auto const & filename)
 {	
 	// Parsing file
 	CharString seqFileName = filename;
     StringSet<CharString> ids;
-    StringSet<Dna5String> seqs;
+    StringSet<Dna5String,Owner<> > seqs;
     SeqFileIn seqFileIn(toCString(seqFileName));
     readRecords(ids, seqs, seqFileIn);
 
-    // Creating the sequence to index
-    DnaString genome;
-    for (unsigned i = 0; i < length(ids); ++i){
-        append(genome,seqs[i]);
-    }
-    return(genome);
+    return(seqs);
   }
 
 void countKmer(std::string fileName, int k){
 
-	DnaString genome = loadGenome(fileName);
+	StringSet<Dna5String> sequences = loadGenome(fileName);
 	// storage
 	TKmerCounter kmerSet;
-	// temporary storage
-	Infix<String<Dna> >::Type inf;
 
-	for( int i = 0; i < length(genome) - k + 1; i++){
+    for(int j = 0; j< length(sequences); j++)
+    {
+        Dna5String seq = sequences[j];
+    	for( int i = 0; i < length(seq) - k + 1; i++){
 
-		inf = infix(genome, i, i+k);
-		if (kmerSet.count(inf) != 0){
-			kmerSet[inf] += 1;
-		}
-		else{
-			kmerSet[inf] = 1;
-		}
-	}
+    		Infix<Dna5String>::Type inf = infix(seq, i, i+k);
+            Dna5String km = Dna5String(inf);
 
-	std::vector<std::pair< Infix<String<Dna> >::Type, int > > kmerVec(std::make_move_iterator(kmerSet.begin()), std::make_move_iterator(kmerSet.end()));
+            if ( kmerSet.count(km) !=0 ){
+    			kmerSet[km] += 1;
+            }
+    		
+    		else{
+    			kmerSet[km] = 1;
+                //testVec.push_back(inf);
+    		}
+    	}
+    }
+	std::vector<std::pair< Dna5String, int > > kmerVec(std::make_move_iterator(kmerSet.begin()), std::make_move_iterator(kmerSet.end()));
+    std::sort(kmerVec.begin(), kmerVec.end(), [](auto x, auto y){ return x.second > y.second;} );
 
-	std::sort(kmerVec.begin(), kmerVec.end(), [](auto x, auto y){ return x.second > y.second;} );
 
-	for (auto elem : kmerVec){
-		//std::cout << elem.first << " : " <<elem.second << std::endl;
-		std::cout << elem.first << std::endl;
-	}
+	for (auto elem : kmerVec)
+    {
+		std::cout << elem.first << "\t" <<elem.second << std::endl;
+		//std::cout << ">_" << elem.first << "_" << elem.second  << std::endl;
+        //std::cout << elem.first << std::endl;
+	// }
+    }
 }
 
 

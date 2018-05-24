@@ -2,46 +2,53 @@
 
 
 import networkx as nx
-from editdistance import eval as lv
 import sys
 
-fileName = sys.argv[1]
-kSize = int(sys.argv[2])
+fileName = sys.argv[1] if(len(sys.argv) >= 2) else "nope"
+minExact = int(sys.argv[2]) if(len(sys.argv) >= 3) else 10
 kmerCount = {}
+
+
+def haveOverlap(seq1, seq2):
+    minOverlap = min(len(seq1), len(seq2)) - 1
+    return(seq1[-minOverlap:] == seq2[:minOverlap])
+
 
 print("OPENING FILE")
 with open(fileName, 'r') as f:
     loop = True
     ident = ""
     seq = ""
+    next(f)  # skipping first line
     while(loop):
         try:
             line = next(f)
         except StopIteration:
             loop = False
         else:
-            if(line[0] != ">"):
-                seq += line[:-1]
-            elif(seq != ""):
-                for i in range(len(seq) - kSize + 1):
-                    km = seq[i:i + kSize]
-                    if(km not in kmerCount.keys()):
-                        kmerCount[km] = 1
-                    else:
-                        kmerCount[km] += 1
+            
+            noErr, oneErr, twoErr, km = line.rstrip("\n").split("\t")
+            kmerCount[km] = (noErr, oneErr, twoErr)
 
 print("GENERATED KMER COUNT")
 
 # print(list(kmerCount.items()))
 
-G = nx.Graph()
-kmers = list([key for key, val in kmerCount.items() if val > 40])
+G = nx.DiGraph()
+kmers = list([key for key, val in kmerCount.items()])
 for kmer1 in kmers:
     for kmer2 in kmers:
-        if(lv(kmer1, kmer2) < 2):
-            G.add_node(kmer1, count=kmerCount[kmer1])
-            G.add_node(kmer2, count=kmerCount[kmer2])
+        count1 = kmerCount[kmer1]
+        count2 = kmerCount[kmer2]
+        G.add_node(kmer1, exact=count1[0],
+                   oneErr=count1[1], twoErr=count1[2])
+        G.add_node(kmer2, exact=count2[0],
+                   oneErr=count2[1], twoErr=count2[2])
+        if(haveOverlap(kmer1, kmer2)):
             G.add_edge(kmer1, kmer2)
+        elif(haveOverlap(kmer2, kmer1)):
+            G.add_edge(kmer2, kmer1)
 
 nx.write_graphml(G, "neighbourgGraph.graphml")
+
 print("GENERATED NEIGHBORHOOD GRAPH")

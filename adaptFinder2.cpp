@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cstdlib>
-#include <chrono>
 
 #include <seqan/index.h>
 #include <seqan/seq_io.h>
@@ -12,13 +11,70 @@
 
 using namespace seqan;
 
+typedef std::unordered_map<DnaString, std::array<int, 3>> counter;
 
-void findAdapt(const std::string& filename, std::string& kmerFile , const int& nbStore, const int& nbThread ){
+// Sale, mais obligé vu que SeqAn ne le fait pas tout seul //
+namespace std {
+    template<>
+    class hash<DnaString> {
+    public:
+        size_t operator() (const DnaString& v) const 
+        {   
+            // TODO: Voir si on peut optimiser...
+            size_t result = 0;
+            for(auto c : v) {
+                result = size_t(c) + 31*result;
+            }
+            return result;
+        }
+    };
+}
+
+template<typename TPrintType>
+void print(TPrintType text)
+{
+    std::cout << text << std::endl;
+}
+
+void oldPrintCounter(counter count)
+{
+
+    for(auto it = count.begin(); it!= count.end(); ++it)
+    {   
+        for(auto e: count[it->first])
+        {
+            std::cout << e << "\t";
+        }
+        std::cout << it->first << std::endl;
+    }
+}
+
+void printCounter(counter count)
+{
+    std::vector<std::pair< std::array<int,3>, DnaString > > toPrint;
+    // converting
+    for(auto it = count.begin(); it!= count.end(); ++it)
+    {   
+        toPrint.push_back( std::make_pair(it->second, it->first ) );
+    
+    }
+    std::sort(toPrint.begin(),toPrint.end(), [](auto e1, auto e2){ return e1.first> e2.first;} );
+
+    for(auto it = toPrint.begin(); it!= toPrint.end(); ++it)
+    {
+        for(auto e: it->first)
+        {
+            std::cout << e << "\t";
+        }
+        std::cout << it->second << std::endl;
+    }
+
+}
+
+void findAdapt(const std::string& filename, std::string& kmerFile, const int& nbErr, const int& nbStore, const int& nbThread ){
     
      // Opening input fasta file
 
-    // CharString seqFileName = "/home/cube/Documents/Code/training/SeqAn/adaptateurs/start20k_Filtered50.fa";
-    // CharString seqFileName = "/home/cube/Documents/Code/training/SeqAn/adaptateurs/example.fa";
     CharString seqFileName = filename;
 
     // Parsing file
@@ -34,9 +90,6 @@ void findAdapt(const std::string& filename, std::string& kmerFile , const int& n
         append(genome,seqs[i]);
     }
 
-    // Setting FMindex
-
-
     
 
     // Opening kmerFile
@@ -50,84 +103,95 @@ void findAdapt(const std::string& filename, std::string& kmerFile , const int& n
     readRecords(kmIds, kmSeqs, kmSeqFileIn);
 
 
-
     // Constants (should be in upper case)
-    const int maxErr  =  1;              // Max number of errors, argument of the function
+    const int maxErr  = 2;           // Max number of errors, argument of the function
     const int nbRead  = length(ids);     // Number of reads in the file
-    const int lenRead = length(seqs[0]);  // size of the sequence to search in
+    const int lenRead = length(seqs[0]); // size of the sequence to search in
 
+    counter results;    
     int count[nbRead];
-    // Defining types to store results
-    typedef std::pair<int,DnaString> resultCount;
-    typedef std::vector<resultCount> resultStore;
-    // Storing counts and sequences
-    resultStore results;
-
+    // dummy sequence, used for research initilisation
+    DnaString dummy = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 
     // Setting the index
-    //Index<DnaString, BidirectionalIndex<FMIndex<void, TFastConfig> > > index(genome);
     typedef FastFMIndexConfig<void, uint32_t, 2, 1> TFastConfig;
 
 
+    // mutex for atomic operations
     std::mutex mtx;
-    auto delegateParallel = [&count, &results, &mtx, &nbRead,  &lenRead, &nbStore](auto & iter, const DnaString & needle, uint8_t errors)
+    auto delegateParallel = [&mtx, &count, &results, &nbRead, &lenRead, &nbStore](auto & iter, const DnaString & needle, int errors)
     {
 
         std::lock_guard<std::mutex> lck(mtx); // critical section below this line
         std::fill(count, count+nbRead, 0);
         
         for (auto occ : getOccurrences(iter)){
-            count[occ/lenRead] = 1;
+            // Testing if the occurence is on one read only
+            // (and not between two reads)
+            if(occ%lenRead + length(needle) - errors <= lenRead )
+            {
+                count[occ/lenRead] = 1;
+              //  std::cout << omp_get_thread_num() << " " << occ << " " << needle << " " << errors << std::endl;
+            }
+            // // For debug only
+            // else
+            // {
+            //     print("Read Overlap");
+            // }
         }
-
+        
         int sum = 0;
         for (int i = 0; i<nbRead; i++){
                 sum += count[i];
             }
-        resultCount currentCount = std::make_pair( sum ,needle);
-        
-        if(std::find(results.begin(), results.end(), currentCount ) == results.end())
+
+        // If new element
+        if( results.find(needle) == results.end()  )
         {
-            results.push_back(currentCount);
+            // Check if we already have enough elemnts
+            if( results.size() >= nbStore +1 )
+            {
+            
+                auto minIt = min_element(results.begin(), results.end(),
+                [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool { return l.second < r.second; });
+                results.erase(minIt);
+
+            }
+            // add new element so it can be filled
+            results[needle] = {0,0,0};
         }
-        if(length(results) > nbStore )
-        {
-            auto minElem = min_element(results.begin(), results.end());
-            results.erase(minElem);
-        }
+         
+        // filling current element
+        results[needle][errors] += sum; 
 
     };
 
 
     Index<DnaString, BidirectionalIndex<FMIndex<TFastConfig> > > index(genome);
-    // trying to perform a fake ressearch to "fix" the problem with sean find parallel
-    // using long homopolymer, that won't modify result, hopefully
-    find<0, maxErr>(delegateParallel, index, kmSeqs[0] , EditDistance() );
+    // trying to perform a fake ressearch to "fix" the problem with seqan find parallel
+    // using long homopolymer, that won't modify results.
+    
+    find<0, maxErr>(delegateParallel, index, dummy , EditDistance() );
+    //std::cout<<"Dummy search done" << std::endl;
+
+    results.clear();   // clearing potential parasite results
+
+    //std::cout << "\n  DUMMY SEARCH DONE \n" << std::endl;
 
 
     omp_set_num_threads(nbThread);    
     find<0, maxErr>(delegateParallel, index, kmSeqs , EditDistance(),Parallel());
 
-    //     if(i%100000  == 0)
-    //     {
-    //         #pragma omp critical
-    //         {
-    //             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-    //             auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    //             std::cout << i << "/" << range << " : " << duration << " " << omp_get_thread_num() << std::endl;
-    //         }
-    //     }
-    
-
-    std::sort(results.begin(),results.end(), [](auto e1, auto e2){ return e1.first> e2.first;} );
-    for (auto elem: results)
+    if(results.size() > nbStore)
     {
-        std::cout << elem.first << " ; " << elem.second << std::endl;
+        auto minIt = min_element(results.begin(), results.end(),
+            [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool { return l.second < r.second; });
+        results.erase(minIt);
     }
-
-
+    printCounter(results);
 }
+
 
 int main(int argc, char const ** argv)
 {
@@ -148,6 +212,10 @@ int main(int argc, char const ** argv)
         "ns", "nbStore", "Number of kmer to keep in result list",
         seqan::ArgParseArgument::INTEGER, "INT"));
 
+    addOption(parser, seqan::ArgParseOption(
+        "ne", "nbErr", "Number of authorized errors (/!\\not used)",
+        seqan::ArgParseArgument::INTEGER, "INT"));
+
     // Parse command line.
     seqan::ArgumentParser::ParseResult res = seqan::parse(parser, argc, argv);
 
@@ -160,14 +228,16 @@ int main(int argc, char const ** argv)
     std::string k = "kexample.fa"; // default Kmer file
     unsigned nbStore = 10;  // default report size
     unsigned nbThread = 4;  // default number of thread
+    unsigned nbErr = 2;     // default number of errors
     getOptionValue(k, parser, "kf");
     getOptionValue(nbThread, parser, "nt");
     getOptionValue(nbStore,  parser, "ns");
+    getOptionValue(nbErr,  parser, "ne");
 
     std::string text;
     getArgumentValue(text, parser, 0);
     std::cout << text << " " << k << " " <<  nbStore << " " << nbThread << std::endl;
-    findAdapt(text,k,nbStore,nbThread);
+    findAdapt(text,k,nbErr,nbStore,nbThread);
 
     return 0;
 }
