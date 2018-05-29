@@ -11,15 +11,30 @@
 
 using namespace seqan;
 
-typedef std::unordered_map<DnaString, std::array<int, 3>> counter;
+// Defining counter type
+// I use an unordered map, using Dna string as keys, which is associated to an array of three vectors
+// Each vector  are 'number of read long', and contain a bool defining if yes or no, the key is found
+// in the n th sequence, at a given error rate( here, either 0, 1 or 2 )
+typedef std::unordered_map<DnaString, std::array<std::vector<bool>, 3> > counter;
+
+
+// subtype for elements
+typedef std::pair<DnaString, std::array<std::vector<bool>, 3> > counterElem;
+
+// Setting the index
+typedef FastFMIndexConfig<void, uint32_t, 2, 1> TFastConfig;
+
+
+
 
 // Sale, mais obligé vu que SeqAn ne le fait pas tout seul //
+// Defining a hash function for DnaString
 namespace std {
     template<>
     class hash<DnaString> {
     public:
         size_t operator() (const DnaString& v) const 
-        {   
+        {
             // TODO: Voir si on peut optimiser...
             size_t result = 0;
             for(auto c : v) {
@@ -30,34 +45,43 @@ namespace std {
     };
 }
 
+// Shortcut to print text in stdout
 template<typename TPrintType>
 void print(TPrintType text)
 {
     std::cout << text << std::endl;
 }
 
-void oldPrintCounter(counter count)
-{
 
-    for(auto it = count.begin(); it!= count.end(); ++it)
-    {   
-        for(auto e: count[it->first])
-        {
-            std::cout << e << "\t";
-        }
-        std::cout << it->first << std::endl;
+template<typename TVector>
+int vectorSum(TVector vec)
+{
+    int res = 0;
+    for(auto it: vec)
+    {
+        res += it;
     }
+    return(res);
 }
 
+
+// Function used to print results
 void printCounter(counter count)
 {
     std::vector<std::pair< std::array<int,3>, DnaString > > toPrint;
     // converting
     for(auto it = count.begin(); it!= count.end(); ++it)
     {   
-        toPrint.push_back( std::make_pair(it->second, it->first ) );
+        std::array<int,3> tmp = {0,0,0};
+        for(int i = 0; i<3 ; i++)
+        {
+            tmp[i] = vectorSum(it->second[i]);
+        }
+
+        toPrint.push_back( std::make_pair(tmp, it->first ) );
     
     }
+    // sorting by count
     std::sort(toPrint.begin(),toPrint.end(), [](auto e1, auto e2){ return e1.first> e2.first;} );
 
     for(auto it = toPrint.begin(); it!= toPrint.end(); ++it)
@@ -68,19 +92,35 @@ void printCounter(counter count)
         }
         std::cout << it->second << std::endl;
     }
-
 }
 
+
+
+
+// template< typename TElement1, typename TElement2 >
+// bool minCounter(TElement1 e1, TElement2 e2 )
+// {
+//     for(int i = 0; i< 3; i++)
+//     {
+//         int v1 = vectorSum(e1.second[i]);
+//         int v2 = vectorSum(e2.second[i]);
+//         if(v1!=v2)
+//         {
+//             return(v1<v2);
+//         }
+//     }
+// }
+
+
+// Search and count a kmer list in a fasta file, at at most a levenstein distance of 2.
 void findAdapt(const std::string& filename, std::string& kmerFile, const int& nbErr, const int& nbStore, const int& nbThread ){
     
      // Opening input fasta file
 
-    CharString seqFileName = filename;
-
     // Parsing file
     StringSet<CharString> ids;
     StringSet<DnaString> seqs;
-    SeqFileIn seqFileIn(toCString(seqFileName));
+    SeqFileIn seqFileIn(toCString(filename));
     readRecords(ids, seqs, seqFileIn);
 
 
@@ -93,29 +133,24 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
     
 
     // Opening kmerFile
-    //CharString kmFileName = kmerFile;
 
     // Parsing file
     StringSet<CharString> kmIds; // not used, but needed
-    //StringSet<DnaString> kmSeqs;
     StringSet<CharString> kmSeqs;
     SeqFileIn kmSeqFileIn(toCString(kmerFile));
     readRecords(kmIds, kmSeqs, kmSeqFileIn);
 
 
     // Constants (should be in upper case)
-    const int maxErr  = 2;           // Max number of errors, argument of the function
+    const int maxErr  = 2;               // Max number of errors, argument of the function
     const int nbRead  = length(ids);     // Number of reads in the file
     const int lenRead = length(seqs[0]); // size of the sequence to search in
 
-    counter results;    
-    int count[nbRead];
-    // dummy sequence, used for research initilisation
+    counter results;
+    bool count[nbRead];
+    // dummy sequence, used for research initialisation
     DnaString dummy = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
-
-    // Setting the index
-    typedef FastFMIndexConfig<void, uint32_t, 2, 1> TFastConfig;
 
 
     // mutex for atomic operations
@@ -124,15 +159,15 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
     {
 
         std::lock_guard<std::mutex> lck(mtx); // critical section below this line
-        std::fill(count, count+nbRead, 0);
+        std::fill(count, count+nbRead, false);
         
         for (auto occ : getOccurrences(iter)){
             // Testing if the occurence is on one read only
             // (and not between two reads)
             if(occ%lenRead + length(needle) - errors <= lenRead )
             {
-                count[occ/lenRead] = 1;
-              //  std::cout << omp_get_thread_num() << " " << occ << " " << needle << " " << errors << std::endl;
+                count[occ/lenRead] = true;
+                //std::cout << omp_get_thread_num() << " " << occ << " " << needle << " " << errors << std::endl;
             }
             // // For debug only
             // else
@@ -141,10 +176,6 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
             // }
         }
         
-        int sum = 0;
-        for (int i = 0; i<nbRead; i++){
-                sum += count[i];
-            }
 
         // If new element
         if( results.find(needle) == results.end()  )
@@ -153,18 +184,39 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
             if( results.size() >= nbStore +1 )
             {
             
+                // auto minIt = min_element(results.begin(), results.end(),
+                // [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool { return l.second < r.second; });
                 auto minIt = min_element(results.begin(), results.end(),
-                [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool { return l.second < r.second; });
+                [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool {
+                    for(int i = 0; i< 3; i++)
+                    {
+                        int v1 = vectorSum(l.second[i]);
+                        int v2 = vectorSum(r.second[i]);
+                        if(v1!=v2)
+                        {
+                            return(v1<v2);
+                        }
+                    }
+                });
+
                 results.erase(minIt);
 
             }
             // add new element so it can be filled
-            results[needle] = {0,0,0};
+            for(int i =0; i<3 ; i++)
+            {   
+                results[needle][i] =  std::vector<bool>(nbRead,false);
+            }
+            
+            
         }
          
         // filling current element
-        results[needle][errors] += sum; 
+        for(int i = 0; i < nbRead ; i++ )
+        {
 
+            results[needle][errors][i] = count[i] | results[needle][errors][i] ;
+        }
     };
 
 
@@ -186,7 +238,17 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
     if(results.size() > nbStore)
     {
         auto minIt = min_element(results.begin(), results.end(),
-            [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool { return l.second < r.second; });
+            [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool {
+                for(int i = 0; i< 3; i++)
+                {
+                    int v1 = vectorSum(l.second[i]);
+                    int v2 = vectorSum(r.second[i]);
+                    if(v1!=v2)
+                    {
+                        return(v1<v2);
+                    }
+                }
+        });
         results.erase(minIt);
     }
     printCounter(results);

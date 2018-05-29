@@ -11,10 +11,7 @@ kmerList = []
 
 def haveOverlap(seq1, seq2):
     minOverlap = min(len(seq1), len(seq2)) - 1
-    if(seq1[-minOverlap:] == seq2[:minOverlap]):
-        return(seq1 + seq2[minOverlap:])
-    else:
-        return("")
+    return(seq1[-minOverlap:] == seq2[:minOverlap])
 
 
 with open(fileName, 'r') as f:
@@ -28,20 +25,9 @@ with open(fileName, 'r') as f:
         except StopIteration:
             loop = False
         else:
+
             noErr, oneErr, twoErr, km = line.rstrip("\n").split("\t")
-            kmerList.append(km)
             kmerCount[km] = (noErr, oneErr, twoErr)
-
-for km in kmerList:
-    ov = km
-    for km2 in kmerList:
-        
-        direct  = haveOverlap(ov, km2)
-        reverse = haveOverlap(km2, ov)
-        
-        if(direct != "" and reverse == ""):
-            ov = direct
-        elif(reverse != "" and direct == ""):
-            ov = reverse
-
-    print(ov)
+            print(">kmer_" + "_".join(str(el)
+                                      for el in [noErr, oneErr, twoErr]))
+            print(km)
