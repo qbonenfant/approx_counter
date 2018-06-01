@@ -52,6 +52,6 @@ while(nbErr != k):
 
 out = open(".".join(filename.split(".")[:-1]) + "_neighbors.fasta", "w")
 for i, kmer in enumerate(allKmer):
-    out.write(">kmer_" + str(i) + " \n")
-    out.write(kmer + " \n")
+    out.write(">kmer_" + str(i) + "\n")
+    out.write(kmer + "\n")
 out.close()

@@ -35,10 +35,10 @@ with open(fileName, 'r') as f:
 for km in kmerList:
     ov = km
     for km2 in kmerList:
-        
-        direct  = haveOverlap(ov, km2)
+
+        direct = haveOverlap(ov, km2)
         reverse = haveOverlap(km2, ov)
-        
+
         if(direct != "" and reverse == ""):
             ov = direct
         elif(reverse != "" and direct == ""):
