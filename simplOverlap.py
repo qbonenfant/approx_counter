@@ -4,9 +4,10 @@
 import sys
 
 fileName = sys.argv[1] if(len(sys.argv) >= 2) else "nope"
-minExact = int(sys.argv[2]) if(len(sys.argv) >= 3) else 10
+verbose = True if(len(sys.argv) >= 3 and sys.argv[2] == "v") else False
 kmerCount = {}
 kmerList = []
+adapters = {}
 
 
 def haveOverlap(seq1, seq2):
@@ -15,6 +16,14 @@ def haveOverlap(seq1, seq2):
         return(seq1 + seq2[minOverlap:])
     else:
         return("")
+
+
+def updateCount(kCounter, key):
+    if(key in kCounter.keys()):
+        kCounter[key] += 1
+    else:
+        kCounter[key] = 1
+    return(kCounter)
 
 
 with open(fileName, 'r') as f:
@@ -34,14 +43,30 @@ with open(fileName, 'r') as f:
 
 for km in kmerList:
     ov = km
-    for km2 in kmerList:
+    found = True
+    used = []
+    while(found):
+        found = False
+        for km2 in kmerList:
+            if(km2 not in used):
+                direct = haveOverlap(ov, km2)
+                reverse = haveOverlap(km2, ov)
 
-        direct = haveOverlap(ov, km2)
-        reverse = haveOverlap(km2, ov)
-
-        if(direct != "" and reverse == ""):
-            ov = direct
-        elif(reverse != "" and direct == ""):
-            ov = reverse
-
-    print(ov)
+                if(direct != "" and reverse == ""):
+                    ov = direct
+                    found = True
+                    used.append(km2)
+                    break
+                elif(reverse != "" and direct == ""):
+                    ov = reverse
+                    found = True
+                    used.append(km2)
+                    break
+        if(verbose):
+            print(ov)
+    if(verbose):
+        print("FINAL OVERLAP")
+        print(ov)
+    adapters = updateCount(adapters, ov)
+for value, adapt in sorted([(v, k) for k, v in adapters.items()])[::-1]:
+    print(adapt, value)

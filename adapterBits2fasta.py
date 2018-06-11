@@ -18,6 +18,7 @@ with open(fileName, 'r') as f:
     loop = True
     ident = ""
     seq = ""
+    it = 0
     next(f)  # skipping first line
     while(loop):
         try:
@@ -28,6 +29,7 @@ with open(fileName, 'r') as f:
 
             noErr, oneErr, twoErr, km = line.rstrip("\n").split("\t")
             kmerCount[km] = (noErr, oneErr, twoErr)
-            print(">kmer_" + "_".join(str(el)
+            print(">kmer_"+ str(it) + "_" + "_".join(str(el)
                                       for el in [noErr, oneErr, twoErr]))
             print(km)
+            it+=1

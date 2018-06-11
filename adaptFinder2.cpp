@@ -82,7 +82,11 @@ void printCounter(counter count)
     
     }
     // sorting by count
-    std::sort(toPrint.begin(),toPrint.end(), [](auto e1, auto e2){ return e1.first> e2.first;} );
+    std::sort(toPrint.begin(),toPrint.end(), [](auto e1, auto e2){ 
+        int v1 = vectorSum(e1.first);
+        int v2 = vectorSum(e2.first);
+        return v1>v2;} );
+    
 
     for(auto it = toPrint.begin(); it!= toPrint.end(); ++it)
     {
@@ -188,14 +192,13 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
                 // [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool { return l.second < r.second; });
                 auto minIt = min_element(results.begin(), results.end(),
                 [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool {
+                    int v1 = 0;
+                    int v2 = 0;
                     for(int i = 0; i< 3; i++)
                     {
-                        int v1 = vectorSum(l.second[i]);
-                        int v2 = vectorSum(r.second[i]);
-                        if(v1!=v2)
-                        {
-                            return(v1<v2);
-                        }
+                        v1 += vectorSum(l.second[i]);
+                        v2 += vectorSum(r.second[i]);
+                    return(v1<v2);
                     }
                 });
 
@@ -238,17 +241,17 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
     if(results.size() > nbStore)
     {
         auto minIt = min_element(results.begin(), results.end(),
-            [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool {
-                for(int i = 0; i< 3; i++)
-                {
-                    int v1 = vectorSum(l.second[i]);
-                    int v2 = vectorSum(r.second[i]);
-                    if(v1!=v2)
-                    {
-                        return(v1<v2);
-                    }
-                }
+        [](decltype(results)::value_type& l, decltype(results)::value_type& r) -> bool {
+            int v1 = 0;
+            int v2 = 0;
+            for(int i = 0; i< 3; i++)
+            {
+                v1 += vectorSum(l.second[i]);
+                v2 += vectorSum(r.second[i]);
+            return(v1<v2);
+            }
         });
+
         results.erase(minIt);
     }
     printCounter(results);
