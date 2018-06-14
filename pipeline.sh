@@ -21,7 +21,7 @@ python3 kExtract.py  $workPath'/'$filename'_kmers_first'$kCutoff'.txt' >  $workP
 #python3 levGen.py  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' 2
 #Counting kmers at ~ 2err
 echo "COUNTING KMERS"
-./adaptFinder2  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 4 -ns $nbStore >  $workPath'/'$filename'_COMPTAGE.txt'
+./adaptFinder2  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 2 -ns $nbStore >  $workPath'/'$filename'_COMPTAGE.txt'
 echo  "CONVERTING RESULT TO FASTA"
 python3 adapterBits2fasta.py  $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_COMPTAGE.fasta'
 echo "GENERATING OVERLAPS"
