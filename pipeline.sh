@@ -26,4 +26,6 @@ echo  "CONVERTING RESULT TO FASTA"
 python3 adapterBits2fasta.py  $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_COMPTAGE.fasta'
 echo "GENERATING OVERLAPS"
 python3 simplOverlap.py $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_OVERLAPS.txt'
+echo "CONVERTING OVERLAPS TO FASTA"
+python3 overlap2fasta.py $workPath'/'$filename'_OVERLAPS.txt' > $workPath'/'$filename'_OVERLAPS.fasta'
 echo "DONE"
