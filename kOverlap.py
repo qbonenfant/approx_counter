@@ -4,8 +4,6 @@
 import sys
 
 fileName = sys.argv[1] if(len(sys.argv) >= 2) else "nope"
-verbose = True 
-kmerCount = {}
 kmerList = []
 adapters = {}
 
@@ -39,9 +37,8 @@ with open(fileName, 'r') as f:
         else:
             noErr, oneErr, twoErr, km = line.rstrip("\n").split("\t")
             kmerList.append(km)
-            kmerCount[km] = (noErr, oneErr, twoErr)
 
-for km in kmerList:
+for km in kmerList[0:10]:
     ov = km
     found = True
     used = []
@@ -62,11 +59,5 @@ for km in kmerList:
                     found = True
                     used.append(km2)
                     break
-        if(verbose):
-            pass
-    if(verbose):
-        #print("FINAL OVERLAP")
-        print(ov)
-    adapters = updateCount(adapters, ov)
-for value, adapt in sorted([(v, k) for k, v in adapters.items()])[::-1]:
-    print(adapt, value)
+    print(ov)
+
