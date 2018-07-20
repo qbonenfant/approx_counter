@@ -21,7 +21,7 @@ python3 kExtract.py  $workPath'/'$filename'_kmers_first'$kCutoff'.txt' >  $workP
 #python3 levGen.py  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' 2
 #Counting kmers at ~ 2err
 echo "COUNTING KMERS"
-./adaptFinder2  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 2 -ns $nbStore >  $workPath'/'$filename'_COMPTAGE.txt'
+./adaptFinder2  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 4 -ns $nbStore >  $workPath'/'$filename'_COMPTAGE.txt'
 echo  "CONVERTING RESULT TO FASTA"
 python3 adapterBits2fasta.py  $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_COMPTAGE.fasta'
 #Modified the pipeline a little
@@ -29,7 +29,7 @@ python3 adapterBits2fasta.py  $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/
 #python3 simplOverlap.py $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_OVERLAPS.txt'
 #echo "CONVERTING OVERLAPS TO FASTA"
 #python3 overlap2fasta.py $workPath'/'$filename'_OVERLAPS.txt' > $workPath'/'$filename'_OVERLAPS.fasta'
-# //// MDOFIS ////
+# //// MODIFS ////
 echo 'Ressearching overlap for kmers 1-10'
 python3 kOverlap.py $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_kOVERLAPS.txt'
 echo "DONE"

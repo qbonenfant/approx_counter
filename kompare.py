@@ -1,4 +1,6 @@
 # coding = utf-8
+# Compare two kmer count file.
+# Displa intersection, difference and unic kmers.
 
 import sys
 

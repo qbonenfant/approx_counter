@@ -6,6 +6,7 @@ import sys
 fileName = sys.argv[1] if(len(sys.argv) >= 2) else "nope"
 kmerList = []
 adapters = {}
+kmerCount = {}
 
 
 def haveOverlap(seq1, seq2):
@@ -37,8 +38,12 @@ with open(fileName, 'r') as f:
         else:
             noErr, oneErr, twoErr, km = line.rstrip("\n").split("\t")
             kmerList.append(km)
+            kmerCount[km] = (noErr, oneErr, twoErr)
 
-for km in kmerList[0:10]:
+dispArray = []
+for km in kmerList[0:1]:
+    dispArray.append(
+        "FIRST\t" + "\t".join([km] + [elem for elem in kmerCount[km]]))
     ov = km
     found = True
     used = []
@@ -53,11 +58,16 @@ for km in kmerList[0:10]:
                     ov = direct
                     found = True
                     used.append(km2)
+                    dispArray.append("RIGHT\t" +
+                                     "\t".join([km2] + [elem for elem in kmerCount[km2]]))
                     break
                 elif(reverse != "" and direct == ""):
                     ov = reverse
                     found = True
                     used.append(km2)
+                    dispArray.insert(0,"LEFT\t" +
+                          "\t".join([km2] + [elem for elem in kmerCount[km2]]))
                     break
-    print(ov)
 
+    print("\t"+ov+"\t0\t1\t2")
+print("\n".join(dispArray))

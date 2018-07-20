@@ -2,9 +2,10 @@
 
 
 import sys
+import networkx as nx
 
 fileName = sys.argv[1] if(len(sys.argv) >= 2) else "nope"
-verbose = True 
+verbose = True
 kmerCount = {}
 kmerList = []
 adapters = {}
@@ -16,14 +17,6 @@ def haveOverlap(seq1, seq2):
         return(seq1 + seq2[minOverlap:])
     else:
         return("")
-
-
-def updateCount(kCounter, key):
-    if(key in kCounter.keys()):
-        kCounter[key] += 1
-    else:
-        kCounter[key] = 1
-    return(kCounter)
 
 
 with open(fileName, 'r') as f:
@@ -41,7 +34,11 @@ with open(fileName, 'r') as f:
             kmerList.append(km)
             kmerCount[km] = (noErr, oneErr, twoErr)
 
-for km in kmerList:
+K = len(kmerList[0])
+
+g = nx.DiGraph()
+
+for km in kmerList[0:1]:
     ov = km
     found = True
     used = []
@@ -62,11 +59,24 @@ for km in kmerList:
                     found = True
                     used.append(km2)
                     break
-        if(verbose):
-            pass
-    if(verbose):
-        #print("FINAL OVERLAP")
-        print(ov)
-    adapters = updateCount(adapters, ov)
-for value, adapt in sorted([(v, k) for k, v in adapters.items()])[::-1]:
-    print(adapt, value)
+
+print(ov)
+for km in [ov[i:i+K] for i in range(len(ov)-K+1)]:
+    print(km)
+    for km2 in kmerList:
+        
+        direct = haveOverlap(km, km2)
+        reverse = haveOverlap(km2, km)
+
+        if(direct != ""):
+            w = kmerCount[km2]
+            g.add_node(km2, weight=sum(
+                [int(i) for i in w]), zero=w[0], one=w[1], two=w[2])
+            g.add_edge(km, km2, direction="RIGHT")
+        if(reverse != "" ):
+            w = kmerCount[km2]
+            g.add_node(km2, weight=sum(
+                [int(i) for i in w]), zero=w[0], one=w[1], two=w[2])
+            g.add_edge(km2, km, direction="LEFT")
+
+nx.write_graphml(g, 'outputGraph.graphml')
