@@ -4,7 +4,6 @@ filePath=$1
 workPath=$2
 kmerSize=$3
 kCutoff=$4
-nbStore=$5
 # Getting filename without extension
 filename=$(basename -- "$filePath")
 filename="${filename%.*}"
@@ -21,7 +20,7 @@ python3 kExtract.py  $workPath'/'$filename'_kmers_first'$kCutoff'.txt' >  $workP
 #python3 levGen.py  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' 2
 #Counting kmers at ~ 2err
 echo "COUNTING KMERS"
-./adaptFinder2  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 4 -ns $nbStore >  $workPath'/'$filename'_COMPTAGE.txt'
+time ./adaptFinder3  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 4 -o $workPath'/'$filename'_COMPTAGE.txt'
 echo  "CONVERTING RESULT TO FASTA"
 python3 adapterBits2fasta.py  $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_COMPTAGE.fasta'
 #Modified the pipeline a little

@@ -34,7 +34,6 @@ void print(TPrintType text)
     std::cout << text << std::endl;
 }
 
-
 template<typename TVector>
 int vectorSum(TVector vec)
 {
@@ -44,14 +43,6 @@ int vectorSum(TVector vec)
         res += it;
     }
     return(res);
-}
-
-
-void printVec(std::vector<bool> vec){
-    for(auto it: vec){
-        std::cout << it << "\t";
-    }
-    std::cout << std::endl;
 }
 
 // Function used to sort and print results in file
@@ -86,15 +77,6 @@ void printCounter(counter count, std::ofstream &outputFile)
         outputFile << it->second << std::endl;
     }
 }
-
-// // Reset the temporary counters
-// void tempCountReset(tempCount &tc, int size)
-// {   
-//     for(int i =0; i<3; i++)
-//     {
-//         std::fill(tc[i], tc[i]+size, false);
-//     }
-// }
 
 
 // Search and count a kmer list in a fasta file, at at most a levenstein distance of 2.
@@ -147,9 +129,8 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
                 if(occ%lenRead + length(needle) <= lenRead )
                 {
                     tcount[errors][occ/lenRead] = true;
-                   
                 }
-                std::cout << omp_get_thread_num() << " " << occ << " " << needle << " " << errors << std::endl;
+                //std::cout << omp_get_thread_num() << " " << occ << " " << needle << " " << errors << std::endl;
             }
         };
 
@@ -161,7 +142,7 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
             // setting temp counter and result value to false 
             for(int i =0; i<3; i++)
             {
-                std::fill(tcount[i].begin(), tcount[i].end(), false);
+                tcount[i] = std::vector<bool>(nbRead,false);
                 #pragma omp critical
                 results[km][i] =  std::vector<bool>(nbRead,false);
             }
@@ -169,7 +150,6 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
             // ressearch, filling tcount
             find<0, maxErr>(delegateParallel, index, kmSeqs[k], EditDistance() );
 
-            // filling current element
             for(int error=0; error<3; error++)
             {
                 for(int i = 0; i < nbRead ; i++ )
@@ -177,9 +157,6 @@ void findAdapt(const std::string& filename, std::string& kmerFile, const int& nb
                     #pragma omp critical
                     results[km][error][i] = tcount[error][i];
                 }
-                #pragma omp critical
-                std::cout << km << "\t" << error << std::endl;
-                printVec(results[km][error]);
             }
         }
     }
