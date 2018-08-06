@@ -51,7 +51,7 @@ void print(TPrintType text)
 {
     std::cout << text << std::endl;
 }
-
+&
 
 template<typename TVector>
 int vectorSum(TVector vec)
