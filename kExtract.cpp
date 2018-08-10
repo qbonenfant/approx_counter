@@ -14,7 +14,7 @@
 using namespace seqan;
 
 
-typedef std::map< Dna5String, int>  TKmerCounter;
+typedef std::map< DnaString, int>  TKmerCounter;
 
 
 
@@ -24,38 +24,58 @@ StringSet<DnaString> loadGenome(auto const & filename)
 	// Parsing file
 	CharString seqFileName = filename;
     StringSet<CharString> ids;
-    StringSet<Dna5String,Owner<> > seqs;
+    StringSet<DnaString,Owner<> > seqs;
     SeqFileIn seqFileIn(toCString(seqFileName));
     readRecords(ids, seqs, seqFileIn);
 
     return(seqs);
   }
 
-void countKmer(std::string fileName, int k){
+bool haveLowComplexity(DnaString sequence, int threshold){
+    unsigned l = length(sequence);
+    std::unordered_map<char,int> counter;
+    for(auto c: sequence){
+        if(counter.count(c) !=0 ){
+            counter[c]+=1;    
+        }
+        else{
+            counter[c]=1;
+        }
+    }
+    for(auto v:counter){
+        if( v.second*100/l >= threshold){
+            return(true);
+        }
+    }
+    return(false);
+}
 
-	StringSet<Dna5String> sequences = loadGenome(fileName);
+void countKmer(std::string fileName, int k, int threshold){
+
+	StringSet<DnaString> sequences = loadGenome(fileName);
 	// storage
 	TKmerCounter kmerSet;
 
     for(int j = 0; j< length(sequences); j++)
     {
-        Dna5String seq = sequences[j];
+        DnaString seq = sequences[j];
     	for( int i = 0; i < length(seq) - k + 1; i++){
 
-    		Infix<Dna5String>::Type inf = infix(seq, i, i+k);
-            Dna5String km = Dna5String(inf);
+    		Infix<DnaString>::Type inf = infix(seq, i, i+k);
+            DnaString km = DnaString(inf);
 
-            if ( kmerSet.count(km) !=0 ){
-    			kmerSet[km] += 1;
+            if(not haveLowComplexity(km,threshold)){
+                if ( kmerSet.count(km) !=0 ){
+        			kmerSet[km] += 1;
+                }
+        		
+        		else{
+        			kmerSet[km] = 1;
+        		}
             }
-    		
-    		else{
-    			kmerSet[km] = 1;
-                //testVec.push_back(inf);
-    		}
     	}
     }
-	std::vector<std::pair< Dna5String, int > > kmerVec(std::make_move_iterator(kmerSet.begin()), std::make_move_iterator(kmerSet.end()));
+	std::vector<std::pair< DnaString, int > > kmerVec(std::make_move_iterator(kmerSet.begin()), std::make_move_iterator(kmerSet.end()));
     std::sort(kmerVec.begin(), kmerVec.end(), [](auto x, auto y){ return x.second > y.second;} );
 
 
@@ -81,6 +101,10 @@ int main(int argc, char const ** argv)
         "k", "k", "Size of the kmer to generate",
         seqan::ArgParseArgument::INTEGER, "INT"));
 
+    addOption(parser, seqan::ArgParseOption(
+        "lc", "lc", "Low complexity filter value (percent)",
+        seqan::ArgParseArgument::INTEGER, "INT"));
+
     // Parse command line.
     seqan::ArgumentParser::ParseResult res = seqan::parse(parser, argc, argv);
     // If parsing was not successful then exit with code 1 if there were errors.
@@ -88,14 +112,20 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    // Extract option values and print them.
+    // Declare containing variables
     unsigned k = 16;   // default Kmer size
+    unsigned lc = 100; // Default low complexity filter (default: none)
+    std::string fileName = "example.fa"; // filename
+    // Extract option values
     getOptionValue(k, parser, "k");
-
-    std::string fileName = "example.fa";
+    getOptionValue(lc, parser, "lc");
     getArgumentValue(fileName, parser, 0);
-    countKmer(fileName, k);
-
+    if(lc<25){
+        std::cout << "Complexity can not be below 25% (nothing would come out...)" << std::endl;
+        return 1;
+    }
+    // counting k-mers
+    countKmer(fileName, k, lc);
 return 0;
 }
 
