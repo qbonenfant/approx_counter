@@ -81,6 +81,22 @@ void parseFile(string fileName ,string sep, TKmCounter &kmCount, TKmList &kmerLi
     
 }
 
+
+string joinStrings(vector<string> container, string sep, int start, int end){
+
+    string result = "";
+    int l =container.size();
+    for(auto it = container.begin()+start; it!= container.end()-(l-end); ++it){
+        cout << *it << endl;
+        result += *it;
+        if(it != container.end()-(l-end)-1){
+            result += sep;
+        }
+    }
+    return(result);
+}
+
+
 template <typename TSmallVector>
 string formatOutLine(string prefix, string key, TSmallVector errorCounts){
     string result = prefix + "\t" + key;
@@ -141,7 +157,7 @@ int main(int argc, char** argv){
     string inputFile = argv[1];
     //Creating outputfile using input file
     int l = inputFile.length();
-    string outputFile = dirname(inputFile) + "overlap_output_"+ basename(inputFile) +".csv";
+    string outputFile = dirname(inputFile) + basename(inputFile) +"_KOVERLAP.csv";
     parseFile(inputFile, sep, kmCount, kmerList);
 
 
