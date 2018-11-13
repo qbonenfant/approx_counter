@@ -81,10 +81,9 @@ void countKmer(std::string fileName, int k, int threshold){
 
 	for (auto elem : kmerVec)
     {
-		std::cout << elem.first << "\t" <<elem.second << std::endl;
-		//std::cout << ">_" << elem.first << "_" << elem.second  << std::endl;
-        //std::cout << elem.first << std::endl;
-	// }
+		std::cout << ">" << elem.first << "_" << elem.second  << std::endl;
+        std::cout << elem.first << std::endl;
+	
     }
 }
 

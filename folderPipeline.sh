@@ -1,6 +1,6 @@
 folder=$1
 outputFolder=$2
-mkdir done
+#mkdir done
 for f in $folder/*
 do
     echo 'Working on '$f

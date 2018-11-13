@@ -17,11 +17,11 @@ fi
 
 #Creating kmer list
 echo "EXTRACTING EXACT KMERS FROM INPUT"
-./kExtract $filePath -k $kmerSize -lc $lowComplexity | head -n $kCutoff > $workPath'/'$filename'_kmers_first'$kCutoff'.txt'
+./kExtract $filePath -k $kmerSize -lc $lowComplexity | head -n $kCutoff > $workPath'/'$filename'_kmers_first'$kCutoff'.fasta'
 
 #Converting to fasta
-echo "CONVERTING KMER LIST TO FASTA"
-python3 kExtract.py  $workPath'/'$filename'_kmers_first'$kCutoff'.txt' >  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta'
+#echo "CONVERTING KMER LIST FROM FASTA to TABBED TEXT"
+#python3 kExtract.py  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' >  $workPath'/'$filename'_kmers_first'$kCutoff'.txt'
 
 
 #Counting kmers at ~ 2err
