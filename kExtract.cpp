@@ -31,7 +31,7 @@ StringSet<DnaString> loadGenome(auto const & filename)
     return(seqs);
   }
 
-bool haveLowComplexity(DnaString sequence, int threshold){
+bool oldHaveLowComplexity(DnaString sequence, int threshold){
     unsigned l = length(sequence);
     std::unordered_map<char,int> counter;
     for(auto c: sequence){
@@ -44,6 +44,32 @@ bool haveLowComplexity(DnaString sequence, int threshold){
     }
     for(auto v:counter){
         if( v.second*100/l >= threshold){
+            return(true);
+        }
+    }
+    return(false);
+}
+
+bool haveLowComplexity(DnaString sequence, int threshold){
+    // New version, using DUST2 method
+    // scanning 2-mers, squaring count, discard if over limit
+    
+    unsigned l = length(sequence);
+    std::unordered_map<std::string,int> counter;
+    std::string seq = toCString(CharString(sequence));
+    // reading using sliding window of 2
+    for(int i =0; i < l-1; i++){
+        std::string c = seq.substr(i,2);
+        if(counter.count(c) !=0 ){
+            counter[c]+=1;    
+        }
+        else{
+            counter[c]=1;
+        }
+    }
+
+    for(auto v:counter){
+        if( v.second * v.second > threshold){
             return(true);
         }
     }
@@ -73,6 +99,7 @@ void countKmer(std::string fileName, int k, int threshold){
         			kmerSet[km] = 1;
         		}
             }
+
     	}
     }
 	std::vector<std::pair< DnaString, int > > kmerVec(std::make_move_iterator(kmerSet.begin()), std::make_move_iterator(kmerSet.end()));
@@ -119,22 +146,12 @@ int main(int argc, char const ** argv)
     getOptionValue(k, parser, "k");
     getOptionValue(lc, parser, "lc");
     getArgumentValue(fileName, parser, 0);
-    if(lc<25){
-        std::cout << "Complexity can not be below 25% (nothing would come out...)" << std::endl;
-        return 1;
-    }
+    // if(lc<25){
+    //     std::cout << "Complexity can not be below 25% (nothing would come out...)" << std::endl;
+    //     return 1;
+    // }
     // counting k-mers
     countKmer(fileName, k, lc);
+    
 return 0;
 }
-
-// pseudocode
-
-// for fragment in genome:
-// 	if fragment in ( list )
-// 		list[fragment].count += 1
-// 	else:
-// 		list[fragment].count = 1
-
-// To sort stuff by value:
-// std::sort(items.begin(), items.end(), cmp);

@@ -157,7 +157,7 @@ int main(int argc, char** argv){
     string inputFile = argv[1];
     //Creating outputfile using input file
     int l = inputFile.length();
-    string outputFile = dirname(inputFile) + basename(inputFile) +"_KOVERLAP.csv";
+    
     parseFile(inputFile, sep, kmCount, kmerList);
 
 
@@ -168,7 +168,7 @@ int main(int argc, char** argv){
     vector<string> displayVector;
     // loop flag. Searching overlap untill we run out of k-mers or no overlap are found.
     bool found = true;
-    displayVector.push_back( formatOutLine("FIRST", km1, kmCount[km1]) );    
+    displayVector.push_back( formatOutLine("START", km1, kmCount[km1]) );    
     
     //     Avoid using the same k-mer twice.
     // /!\ Can lead to unpredictable behaviours with small k-mers
@@ -195,18 +195,14 @@ int main(int argc, char** argv){
                     displayVector.insert(displayVector.begin(),formatOutLine("LEFT",  km2 , kmCount[km2]));
                     break;
                 }
-
             }
         }
     }
-    // printing in output file
-    ofstream output (outputFile);
-    output << ov << endl;
+    // printing results
+    std::cout << ov << std::endl;
     for(auto line: displayVector){
-        output << line << endl;
+        std::cout << line << std::endl;
     }
-    output.close();
-
 
     return(0);
 }
