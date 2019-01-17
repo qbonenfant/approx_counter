@@ -30,7 +30,7 @@ python3 $directOv $workPath'/'$filename'_kmers_first'$kCutoff'.txt' >  $workPath
 
 #Counting kmers at ~ 2err
 echo "COUNTING APPROXIMATE KMERS"
-./adaptFinder3  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 4 -o $workPath'/'$filename'_COMPTAGE.txt'
+./adaptFinder  $filePath -kf  $workPath'/'$filename'_kmers_first'$kCutoff'.fasta' -nt 4 -o $workPath'/'$filename'_COMPTAGE.txt'
 
 echo 'Ressearching overlap for 1st kmer'
 ./kOverlap $workPath'/'$filename'_COMPTAGE.txt' > $workPath'/'$filename'_KOVERLAP.csv'

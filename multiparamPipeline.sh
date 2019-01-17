@@ -35,7 +35,7 @@ for kmerSize in ${kmList[@]};do
 
         #Counting kmers at ~ 2err
         echo "COUNTING KMERS"
-        ./adaptFinder3  $filePath -kf  $currentWorkPath'/'$currentFileName'_kmers_first'$kCutoff'.fasta' -nt 4 -o $currentWorkPath'/'$currentFileName'_COMPTAGE.txt'
+        ./adaptFinder  $filePath -kf  $currentWorkPath'/'$currentFileName'_kmers_first'$kCutoff'.fasta' -nt 4 -o $currentWorkPath'/'$currentFileName'_COMPTAGE.txt'
 
         echo 'RESSEARCHING ADAPTER FROM 1ST KMER OVERLAPS'
         ./kOverlap $currentWorkPath'/'$currentFileName'_COMPTAGE.txt'
