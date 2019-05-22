@@ -4,7 +4,6 @@ Nanopore adaptaters ressearch using approximate kmer count.
 ## Requirement
 - C++ (11+)
 - SeqAn (2.4.0+)
-- OpenMP
 
 ## Compiling
 In order to compile this file, I recommend using the following command
@@ -34,7 +33,7 @@ OPTIONS
     -lim, --limit INTEGER
           limit the number of kmer used after initial counting, default is 500
     -v, --verbosity INTEGER
-          Level of details printed out
+          Level of details printed out (fixed for the moment)
     -e, --exact_file STRING
           path to export the exact k-mer count, if needed. Default: no export
     -o, --out_file STRING
