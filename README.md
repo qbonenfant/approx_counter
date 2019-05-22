@@ -39,3 +39,7 @@ OPTIONS
           path to export the exact k-mer count, if needed. Default: no export
     -o, --out_file STRING
           path to the output file, default is ./out.txt
+
+## Example
+adaptFinder file.fasta -k 16 --sample_n 20000 --sample_length 90 -nt 4 lim 1000 -e exact_out.txt -o approx_out.txt
+
