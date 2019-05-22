@@ -461,7 +461,7 @@ int main(int argc, char const ** argv)
     print("Number of kmer found / kept");
     print(count.size());
     pair_vector first_n_vector = get_most_frequent(count, limit);
-    print(count.size());
+    print(first_n_vector.size());
 
     // Exporting exact kmer count, if required
     if(not exact_out.empty() ){
