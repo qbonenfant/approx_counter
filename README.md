@@ -1,10 +1,13 @@
 # levAdapt
 Nanopore adaptaters ressearch using approximate kmer count.
 
+## Usage
 REQUIRED ARGUMENTS
+
     input_filename STRING
 
 OPTIONS
+
     -h, --help
           Display the help message.
     -lc, --low_complexity DOUBLE
