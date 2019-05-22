@@ -2,10 +2,9 @@
 Nanopore adaptaters ressearch using approximate kmer count.
 
 ## Requirement
-
-C++ compiler
-SeqAn (2.4.0+)
-OpenMP
+- C++ (11+)
+- SeqAn (2.4.0+)
+- OpenMP
 
 ## Compiling
 In order to compile this file, I recommend using the following command
