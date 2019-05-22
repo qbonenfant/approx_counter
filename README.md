@@ -1,2 +1,27 @@
 # levAdapt
-Nanopore adaptaters ressearch using levenstein neighborhood of kmers.
+Nanopore adaptaters ressearch using approximate kmer count.
+
+REQUIRED ARGUMENTS
+    input_filename STRING
+
+OPTIONS
+    -h, --help
+          Display the help message.
+    -lc, --low_complexity DOUBLE
+          low complexity filter threshold (for k=16), default 1.5
+    -sn, --sample_n INTEGER
+          sample n sequences from dataset, default 10k sequences
+    -sl, --sample_length INTEGER
+          size of the sampled portion, default 100 bases
+    -nt, --nb_thread INTEGER
+          Number of thread to work with, default is 4
+    -k, --kmer_size INTEGER
+          Size of the kmers, default is 16
+    -lim, --limit INTEGER
+          limit the number of kmer used after initial counting, default is 500
+    -v, --verbosity INTEGER
+          Level of details printed out
+    -e, --exact_file STRING
+          path to export the exact k-mer count, if needed. Default: no export
+    -o, --out_file STRING
+          path to the output file, default is ./out.txt
