@@ -4,6 +4,7 @@ Nanopore adaptaters inference using approximate kmer count.
 ## Requirement
 - C++ (11+)
 - SeqAn (2.4.0+)
+- networkx
 
 ## Compiling
 In order to compile this file, I recommend using the following command
