@@ -1,5 +1,5 @@
-# levAdapt
-Nanopore adaptaters ressearch using approximate kmer count.
+# adaptFinder
+Nanopore adaptaters inference using approximate kmer count.
 
 ## Requirement
 - C++ (11+)
