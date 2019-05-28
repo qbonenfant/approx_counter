@@ -208,8 +208,8 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
     unsigned nb_sample = sample_size;
     unsigned sequence_set_size = length(sequence_set);
     if(sample_size > sequence_set_size){
-        std::cout << "Sequence set too small for the requested sample size\n";
-        std::cout << "The whole set will be used." ;
+        std::cout << "Sequence set too small for the requested sample size"<<std::endl;
+        std::cout << "The whole set will be used." <<std::endl;
         nb_sample = sequence_set_size;
     }
 
