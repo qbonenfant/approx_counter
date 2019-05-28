@@ -227,6 +227,13 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
     unsigned i = 0;
     unsigned seq_id;
 
+    // display
+    if(bot){
+        print("Sampling the ends of reads");
+    else{
+        print("Sampling the start of reads");
+    }
+
     // Fetching the random sequences
     while(nb_seq < nb_sample and i < sequence_set_size ){
         
@@ -237,11 +244,9 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
         // at least as long as the requested sample length
         if( length(sequence_set[ seq_id ]) >= cut_size ){
             if(bot){
-                print("Sampling the ends of reads");
                 appendValue(sample, suffix(sequence_set[ seq_id ],cut_size));
             }
             else{
-                print("Sampling the start of reads");
                 appendValue(sample, prefix(sequence_set[ seq_id ],cut_size));
             }
             nb_seq +=1;
