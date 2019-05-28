@@ -230,6 +230,7 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
     // display
     if(bot){
         print("Sampling the ends of reads");
+    }
     else{
         print("Sampling the start of reads");
     }
