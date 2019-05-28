@@ -13,9 +13,12 @@
 #include <unordered_map>
 
 
-
 using namespace seqan;
 
+// Program start timestamp
+const auto boot_time = std::chrono::steady_clock::now();
+
+// Alphabet used for 2 bit conversion
 const std::string DNA = "ACGT";
 
 // Setting the index
@@ -33,9 +36,6 @@ typedef std::vector<bool>  bit_field;
 
 
 
-// Starting time
-const auto boot_time = std::chrono::steady_clock::now();
-
 /**
     Convert a Seqan DnaString to unsigned int.
     SeqAn already store DnaString in 2 bit representation,
@@ -48,7 +48,7 @@ inline unsigned dna2int(DnaString seq){
     
     unsigned value = 0;
     for(auto c : seq){
-        value = value << 2 | uint8_t(c);    
+        value = value << 2 | (uint8_t)(c);
     }
     return(value);
 }
@@ -198,7 +198,7 @@ pair_vector get_most_frequent(counter & count_map, unsigned limit){
     @param Size of the sampled sequence.
     @return A set of sample sequences cut to size.
 */
-sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sample_size, unsigned cut_size){
+sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sample_size, unsigned cut_size, bool bot){
     sequence_set_type sample;
     
     // Initialising the random seed
@@ -236,7 +236,12 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
         // we also need to check that the sequence is
         // at least as long as the requested sample length
         if( length(sequence_set[ seq_id ]) >= cut_size ){
-            appendValue(sample, prefix(sequence_set[ seq_id ],cut_size));
+            if(bot){
+                appendValue(sample, suffix(sequence_set[ seq_id ],cut_size));
+            }
+            else{
+                appendValue(sample, prefix(sequence_set[ seq_id ],cut_size));
+            }
             nb_seq +=1;
         }
         i++;
@@ -265,7 +270,7 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold){
         while(i < length(seq)){ 
             
             n <<= 2; 
-            n = (n & base) |  size_t(seq[i]);
+            n = (n & base) |  (uint8_t)(seq[i]);
             if(not haveLowComplexity(n,k,threshold)){
                 count[n] +=1 ;
             }           
@@ -398,6 +403,9 @@ int main(int argc, char const ** argv)
         seqan::ArgParseArgument::STRING, "exact count output file"));
 
     addOption(parser, seqan::ArgParseOption(
+        "bot", "bottom", "Ressearsh bottom adapter instead of forward"));
+
+    addOption(parser, seqan::ArgParseOption(
         "o", "out_file", "path to the output file, default is ./out.txt",
         seqan::ArgParseArgument::STRING, "output file"));
 
@@ -430,6 +438,7 @@ int main(int argc, char const ** argv)
     getOptionValue(nb_thread, parser, "nt");
     getOptionValue(output, parser, "o");
     getOptionValue(exact_out, parser, "e");
+    bool bot = isSet(parser, "bot"); // checking if we search forward or reverse
     std::string input_file;
     getArgumentValue(input_file, parser, 0);
 
@@ -442,7 +451,10 @@ int main(int argc, char const ** argv)
     // adjusting low complexity to kmer size
     lc = adjust_threshold( lc, 16, k );
     print("LC filter adjusted to " + std::to_string(lc));
-    // Parsing input fasta file
+
+    // Parsing input fasta file.
+    // It may be replaced by a custom version
+    // because SeqAn seems to use a lot of RAM.
     StringSet<CharString> ids;
     StringSet<DnaString> seqs;
     print("Parsing FASTA file");
@@ -451,7 +463,7 @@ int main(int argc, char const ** argv)
 
     // sample and cut sequences to required length
     print("Sampling");
-    sequence_set_type sample = sampleSequences(seqs, sn, sl);
+    sequence_set_type sample = sampleSequences(seqs, sn, sl, bot);
     
     // counting k-mers on the sampled sequences
     print("Exact k-mer count");
