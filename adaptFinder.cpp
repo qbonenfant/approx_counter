@@ -470,10 +470,9 @@ int main(int argc, char const ** argv)
     counter count = count_kmers(sample, k, lc);
     
     // keeping most frequents kmers
-    print("Number of kmer found / kept");
-    print(count.size());
+    std::cout << "Number of kmer found: "  << count.size() << std::endl;
     pair_vector first_n_vector = get_most_frequent(count, limit);
-    print(first_n_vector.size());
+    std::cout << "Number of kmer kept:  "  <<first_n_vector.size() << std::endl;
 
     // Exporting exact kmer count, if required
     if(not exact_out.empty() ){
