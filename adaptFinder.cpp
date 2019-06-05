@@ -75,10 +75,15 @@ inline DnaString int2dna(unsigned value, uint8_t k){
     @param whatever you want to print.
 */
 template<typename TPrintType>
-void print(TPrintType text)
-{
+void print(TPrintType text, int tab = 0)
+{   
+
     const auto milis = std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - boot_time).count();
-    std::cout << "[" << milis << " ms]\t" << text << std::endl;
+    std::cout << "[" << milis << " ms]\t" ;
+    for(int i = 0; i < tab; i++){
+        std::cout << "\t";
+    }
+    std::cout << text << std::endl;
 }
 
 
@@ -102,7 +107,7 @@ void printCounters(TPrintType & pvec, uint8_t k){
     @param the path to the outputfile
 */
 template<typename TPrintType>
-void exportCounter(TPrintType & pvec, uint8_t k, std::string output){
+bool exportCounter(TPrintType & pvec, uint8_t k, std::string output){
 
     std::ofstream outputFile;
     outputFile.open (output);
@@ -115,7 +120,9 @@ void exportCounter(TPrintType & pvec, uint8_t k, std::string output){
     }
     else{
         print("COULD NOT OPEN FILE " + output);
+        return(false);
     }
+    return(true);
 }
 
 /**
@@ -159,12 +166,13 @@ inline  bool haveLowComplexity(unsigned kmer, uint8_t k, float threshold){
     // reading using sliding window of 2
     for(int i = 0; i < k-1; i++){
         // storing dimers as 2 * 2 bits
-        uint8_t c =  kmer & 16;
+        uint8_t c =  kmer & 15;
         // removing last element of the k-mer
         kmer >>=2;
         // updating value of dimer count
         counts[c]++;
     }
+
     float s = 0;
     size_t sum = 0;
     for(auto v:counts){
@@ -198,29 +206,21 @@ pair_vector get_most_frequent(counter & count_map, unsigned limit){
     @param Size of the sampled sequence.
     @return A set of sample sequences cut to size.
 */
-sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sample_size, unsigned cut_size, bool bot){
+sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_sample, unsigned cut_size, bool bot, uint8_t v){
     sequence_set_type sample;
     
     // Initialising the random seed
     srand(time(0));
-    
-    // Checking if we can sample the requested number of sequences, else return the whole set
-    unsigned nb_sample = sample_size;
-    unsigned sequence_set_size = length(sequence_set);
-    if(sample_size > sequence_set_size){
-        std::cout << "Sequence set too small for the requested sample size"<<std::endl;
-        std::cout << "The whole set will be used." <<std::endl;
-        nb_sample = sequence_set_size;
-    }
 
+    unsigned sequence_set_size = length(sequence_set);
     // Building vector with all possible seq indice
-    std::vector<int> v(sequence_set_size) ; 
-    std::iota(std::begin(v), std::end(v), 0);
+    std::vector<int> vec(sequence_set_size) ; 
+    std::iota(std::begin(vec), std::end(vec), 0);
 
     // and applying random shuffling to said vector.
     std::random_device rd;
     std::mt19937 g(rd());
-    std::shuffle(v.begin(), v.end(), g);
+    std::shuffle(vec.begin(), vec.end(), g);
 
     // counters
     unsigned nb_seq = 0;
@@ -228,24 +228,26 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
     unsigned seq_id;
 
     // display
-    if(bot){
-        print("Sampling the ends of reads");
-    }
-    else{
-        print("Sampling the start of reads");
+    if(v>0){
+        if(bot){
+            print("Sampling the ends of reads",1);
+        }
+        else{
+            print("Sampling the start of reads",1);
+        }
     }
 
     // Fetching the random sequences
     while(nb_seq < nb_sample and i < sequence_set_size ){
         
         // current sequence id
-        seq_id = v[i];
+        seq_id = vec[i];
 
         // we also need to check that the sequence is
-        // at least as long as the requested sample length
-        if( length(sequence_set[ seq_id ]) >= cut_size ){
+        // at least long enough to contains both adapters.
+        if( length(sequence_set[ seq_id ]) >= cut_size * 2 ){
             if(bot){
-                appendValue(sample, suffix(sequence_set[ seq_id ],cut_size));
+                appendValue(sample, suffix(sequence_set[ seq_id ], length(sequence_set[ seq_id ]) - 1 - cut_size ));
             }
             else{
                 appendValue(sample, prefix(sequence_set[ seq_id ],cut_size));
@@ -254,7 +256,8 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned sam
         }
         i++;
     }
-    print("Sampled " + std::to_string(length(sample)) + " sequences");
+    if(v>0)
+        print("Sampled " + std::to_string(length(sample)) + " sequences",1);
     return(sample);
 }
 
@@ -298,15 +301,17 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold){
     @return a map of the kmer count, with a kmer hash as key.
 
 */
-counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, uint8_t nb_thread, uint8_t k){
+counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, uint8_t nb_thread, uint8_t k, uint8_t v){
     
     const uint8_t MAXERR = 2; // Max number of errors, need to be fixed at compile time
 
     unsigned sample_size = length(sequences);
-
-    print("Preparing index");
+    if(v>0)
+        print("Preparing index",1);
     index_t  index(sequences);
-    print("Creating index");
+    
+    if(v>0)
+        print("Creating index",1);
     indexCreate(index);
     
     // Result storage
@@ -314,7 +319,8 @@ counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, ui
 
     // setting number of parallel thread
     omp_set_num_threads(nb_thread);
-    print("Starting approximate counting");
+    if(v>0)
+        print("Starting approximate counting",1);
     #pragma omp parallel shared(index, results)
     {
         // local variable to keep track of kmer occurences
@@ -411,9 +417,6 @@ int main(int argc, char const ** argv)
         seqan::ArgParseArgument::STRING, "exact count output file"));
 
     addOption(parser, seqan::ArgParseOption(
-        "bot", "bottom", "Ressearsh bottom adapter instead of forward"));
-
-    addOption(parser, seqan::ArgParseOption(
         "o", "out_file", "path to the output file, default is ./out.txt",
         seqan::ArgParseArgument::STRING, "output file"));
 
@@ -434,7 +437,7 @@ int main(int argc, char const ** argv)
     unsigned sn = 10000;     // number of sequence sampled
     unsigned limit = 500;    // number of kmers to keep.
     double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
-    unsigned v = 0;
+    unsigned v = 1;
 
     // Fetching values
     getOptionValue(limit, parser, "lim");
@@ -446,57 +449,109 @@ int main(int argc, char const ** argv)
     getOptionValue(nb_thread, parser, "nt");
     getOptionValue(output, parser, "o");
     getOptionValue(exact_out, parser, "e");
-    bool bot = isSet(parser, "bot"); // checking if we search forward or reverse
     std::string input_file;
     getArgumentValue(input_file, parser, 0);
 
+
+    std::string warning = "/!\\ WARNING: ";
 
     // checking value for k
     if( k<2 or k>32 ){
         throw std::invalid_argument("kmer size must be between 2 and 32 (included)");
     }
     
+    // number of tab to display
+    int tab_level = 0;
+
     // adjusting low complexity to kmer size
     lc = adjust_threshold( lc, 16, k );
-    print("LC filter adjusted to " + std::to_string(lc));
+    if(v>0)
+        print("LC filter adjusted to " + std::to_string(lc),tab_level);
 
     // Parsing input fasta file.
     // It may be replaced by a custom version
     // because SeqAn seems to use a lot of RAM.
     StringSet<CharString> ids;
     StringSet<DnaString> seqs;
-    print("Parsing FASTA file");
+    if(v>0)
+        print("Parsing FASTA file",tab_level);
     SeqFileIn seqFileIn(toCString(input_file));
     readRecords(ids, seqs, seqFileIn);
-
-    // sample and cut sequences to required length
-    print("Sampling");
-    sequence_set_type sample = sampleSequences(seqs, sn, sl, bot);
     
-    // counting k-mers on the sampled sequences
-    print("Exact k-mer count");
-    counter count = count_kmers(sample, k, lc);
-    
-    // keeping most frequents kmers
-    std::cout << "Number of kmer found: "  << count.size() << std::endl;
-    pair_vector first_n_vector = get_most_frequent(count, limit);
-    std::cout << "Number of kmer kept:  "  <<first_n_vector.size() << std::endl;
-
-    // Exporting exact kmer count, if required
-    if(not exact_out.empty() ){
-        print("Exporting exact kmer count");
-        exportCounter(first_n_vector, k, exact_out);
-        //exportCounter(get_most_frequent(count, limit),k,exact_out);   
+    // Checking if we can sample the requested number of sequences, else return the whole set
+    unsigned sequence_set_size = length(seqs);
+    if( sn > sequence_set_size){ 
+        std::cout << warning << "Sequence set too small for the requested sample size\n";
+        std::cout << warning << "The whole set will be used.\n" ;
+        sn = sequence_set_size;
     }
 
-    // Counting with at most 2 errors
-    print("Approximate k-mer count");
-    counter error_counter = errorCount(sample, first_n_vector, nb_thread, k);
-    pair_vector sorted_error_count = get_most_frequent(error_counter,limit);
 
-    //printCounters(sorted_error_count,k);
-    print("Exporting approximate count");
-    exportCounter(sorted_error_count,k,output);
-    print("Done");
+
+    bool success = true;
+    // performing ressearch on both ends
+    std::array<std::string, 2 > ends = {"start","end"};
+    bool bottom = false; // checking if we search top adapter(start) or bottom adapter (end)
+    for(std::string which_end: ends){
+
+        tab_level += 1;
+        if(v>0){
+            print("Working on " + which_end + " adapter",tab_level - 1);
+            // sample and cut sequences to required length
+            print("Sampling",tab_level);
+        }
+        sequence_set_type sample = sampleSequences(seqs, sn, sl, bottom, v);
+
+
+        // counting k-mers on the sampled sequences
+        if(v>0)
+            print("Exact k-mer count",tab_level);
+        counter count = count_kmers(sample, k, lc);
+        
+
+        // keeping most frequents kmers
+        if(v>0)
+            print("Number of kmer found: " + std::to_string(count.size()), tab_level);
+        pair_vector first_n_vector = get_most_frequent(count, limit);
+        if(v>0)
+            print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
+        
+        // Just print a warning if we think adapter may have been trimmed.
+        if( first_n_vector[0].second < 0.1 * sn){
+            std::cout << warning << "The most frequent kmer has been found in less than 10% of the reads (" << first_n_vector[0].second << "/" << sn << ")" <<std::endl;
+            std::cout << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
+        }
+
+        // Exporting exact kmer count, if required
+        if(not exact_out.empty() ){
+            if(v>0)
+                print("Exporting exact kmer count",tab_level);
+            success = exportCounter(first_n_vector, k, exact_out + "." + which_end );
+            if(!success){
+                return(1);
+            }
+        }
+
+        // Counting with at most 2 errors
+        if(v>0)
+            print("Approximate k-mer count",tab_level);
+        counter error_counter = errorCount(sample, first_n_vector, nb_thread, k, v);
+        pair_vector sorted_error_count = get_most_frequent(error_counter,limit);
+
+        if(v>0)
+            print("Exporting approximate count",tab_level);
+        success = exportCounter(sorted_error_count,k, output+ "." + which_end );
+        if(!success){
+                return(1);
+            }
+        if(v>0)
+            print("Done",tab_level);
+        
+        clear(sample);
+        bottom = true;
+        tab_level -= 1;
+    }
+    
+
     return 0;
 }
