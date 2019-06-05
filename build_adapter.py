@@ -3,12 +3,6 @@
 import sys
 import networkx as nx
 
-count_file = sys.argv[1]
-
-kmer_count = {}
-kmer_list = []
-adapters = {}
-
 
 def get_weight(g,path):
     total = 0
@@ -23,15 +17,61 @@ def haveOverlap(seq1, seq2):
     else:
         return("")
 
-def greedy_assembl(g,kmer_list):
+def build_graph(count_file):
+    """Build the adapter from the kmer count file.
+       The way it is done is by building a directed weighted graph
+       and searching for the heaviest path.
+       I also added the greedy adapter output
+    """
 
-    km = kmer_list[0]    
-    g.node[km]["path"] = "greedy" if g.node[km]["path"] == "" else "both"
-    g.node[km]["position"] = "FIRST"
+    kmer_count = {}
+    kmer_list = []
 
+    g = nx.DiGraph()
+
+    # building graph
+    with open(count_file, 'r') as f:
+        for line in f:
+            km, nb = line.rstrip("\n").split("\t")
+            kmer_count[km] = int(nb)
+            kmer_list.append(km)
+            g.add_node(km, weight = int(nb))#, path = "" )
+        
+    # searching overlaps
+    for km in kmer_list:
+        for km2 in kmer_list:
+            # since i do all the possible combinations
+            # There is no need to test both orientation
+            direct = haveOverlap(km, km2)
+            if(direct != ""):            
+                g.add_edge(km, km2)
+            
+    # removing singletons
+    g.remove_nodes_from( [node for node in g.nodes if  len(list(nx.all_neighbors(g,node))) == 0] )
+
+    # Returning only the biggest connected component
+    return( g.subgraph(max(nx.weakly_connected_components(g), key= lambda x: get_weight(g,x))) )
+
+
+
+def greedy_assembl(g):
+    """Greedy assembly method to compute the adapter
+    TODO: modify it so it use directly the graph...
+    @param the overlap graph of kmers
+    @return the longest debruijn sequence starting by the first kmer
+    """
+    kmer_dict = g.nodes(data=True)
+    kmer_list = list( dict(kmer_dict).keys() )
+    kmer_list.sort( key= lambda x: kmer_dict[x]['weight'])
+    kmer_list.reverse()
+
+    km = kmer_list[0]
     ov = km
     found = True
     used = [km]
+    #annotating graph
+    g.node[km]["path"] = (g.node[km]["path"] + ",greedy").lstrip(",")
+
     while(found):
         found = False
         for km2 in kmer_list:
@@ -42,77 +82,112 @@ def greedy_assembl(g,kmer_list):
                     ov = direct
                     found = True
                     used.append(km2)
-                    g.node[km2]["path"] = "greedy" if g.node[km2]["path"] == "" else "both"
-                    g.node[km2]["position"] = "RIGHT"
+                    g.node[km2]["path"] = (g.node[km2]["path"] + ",greedy").lstrip(",")
                     break
 
                 elif(reverse != "" and direct == ""):   
                     ov = reverse
                     found = True
                     used.append(km2)
-                    g.node[km2]["path"] = "greedy" if g.node[km2]["path"] == "" else "both"
-                    g.node[km2]["position"] = "LEFT"
+                    g.node[km2]["path"] = (g.node[km2]["path"] + ",greedy").lstrip(",")
+
                     break
     return(ov)
 
+def dag_heaviest_path(G):
+    """Returns the heaviest path in a DAG
 
-g = nx.DiGraph()
+    Parameters
+    ----------
+    G : NetworkX DiGraph
+        Graph
 
-# building graph
-with open(count_file, 'r') as f:
-    for line in f:
-        km, nb = line.rstrip("\n").split("\t")
-        kmer_count[km] = int(nb)
-        kmer_list.append(km)
-        g.add_node(km, weight = int(nb), path = "" )
+    Returns
+    -------
+    path : list
+        Heaviest path
+
+    Comment
+    -------
+    This is a modified version of the dag_longest_path
+    using node weight as distance.
+    """
+    dist = {}  # stores [node, distance] pair
+    for node in nx.topological_sort(G):
+        # pairs of dist,node for all incoming edges
+        pairs = [(dist[v][0] + G.node[v]["weight"], v) for v in G.pred[node]]
+        if pairs:
+            dist[node] = max(pairs)
+        else:
+            dist[node] = (0, node)
+    node, (length, _) = max(dist.items(), key=lambda x: x[1])
+    path = []
+    while length > 0:
+        path.append(node)
+        length, node = dist[node]
+    return list(reversed(path))
+
+
+def heavy_path(g):
+    """ Searching the truly heaviest path between all source and target nodes.
+        Even if longer path tend to be heavier, very heavy short path can 
+        also be selected.
+    """
     
+    hv_path = dag_heaviest_path(g)
 
-K = len(kmer_list[0])
+    for n in hv_path:
+        g.node[n]["path"] = (g.node[n]["path"] + ",heavy").lstrip(",")
 
-# searching overlaps
-for km in kmer_list:
-    for km2 in kmer_list:
-        # since i do all the possible combinations
-        # There is no need to test both orientation
-        direct = haveOverlap(km, km2)
-        if(direct != ""):            
-            g.add_edge(km, km2)
-        
-# removing singletons
-g.remove_nodes_from( [node for node in g.nodes if  len(list(nx.all_neighbors(g,node))) == 0] )
-    
-lg_path = nx.dag_longest_path(g)
-
-for node in lg_path:
-    nd = g.nodes[node]
-    nd['path'] = "main"
-
-print( lg_path[0][:-1] + "".join( el[-1] for el in lg_path ) )
-print(greedy_assembl(g,kmer_list))
+    return( hv_path[0][:-1] + "".join( el[-1] for el in hv_path ) )
 
 
-#heavy path
-sources = [n for n in g.nodes if not list(g.predecessors(n))  ]
-targets = [n for n in g.nodes if not list(g.successors(n))    ]
-# print(sources)
-# print(targets)
+def longest_path(g):
+    lg_path = nx.dag_longest_path(g)
 
-hv_path = []
-w = 0
-for source in sources:
-    for target in targets:
-        try:
-            heaviest_path = max((path for path in nx.all_simple_paths(g, source, target)),
-                        key=lambda path: get_weight(g,path))
-            current_w = get_weight(g,heaviest_path)
-            if(current_w > w):
-                hv_path = heaviest_path
-                w = current_w
-        except ValueError:
-            pass
+    for n in lg_path:
+        g.node[n]["path"] = (g.node[n]["path"] + ",long").lstrip(",")
 
-for node in hv_path:
-    g.nodes[node]["path"] = "heavy" if g.nodes[node]["path"] == "" else "common"
+    return(lg_path[0][:-1] + "".join( el[-1] for el in lg_path ))
 
-print( hv_path[0][:-1] + "".join( el[-1] for el in hv_path ) )
-nx.write_graphml(g, count_file + '.graphml')
+
+count_file = sys.argv[1]
+  
+# Building graph
+g = build_graph( count_file )
+
+# preping for anotation
+nx.set_node_attributes(g, "", "path" )
+
+# greedy adapters
+greedy_adapter = greedy_assembl(g)
+
+# Longest path, catching exception to avoid loops
+try:
+    long_adapter = longest_path(g)
+
+except:
+    print("Could not compute adaper using longest path  method", file = sys.stderr)
+    print("The resulting graph probably contains a loop.", file = sys.stderr)
+    long_adapter  = ""
+
+# heaviest path adapter  
+try:
+    heavy_adapter = heavy_path(g)
+except:
+    print("Could not compute adaper using heaviest path  method", file = sys.stderr)
+    print("The resulting graph probably contains a loop.", file = sys.stderr)
+    heavy_adapter = ""
+
+
+#Exporting graph
+path = "./adapter_graph.graphml"
+nx.write_graphml(g,path)
+
+# printing adapters
+print("Greedy")
+print(greedy_adapter)
+print("Long")
+print(long_adapter)
+print("Heavy")
+print(heavy_adapter)
