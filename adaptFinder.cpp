@@ -480,7 +480,7 @@ int main(int argc, char const ** argv)
     
     // Checking if we can sample the requested number of sequences, else return the whole set
     unsigned sequence_set_size = length(seqs);
-    if( sn > sequence_set_size){ 
+    if( v>0 and sn > sequence_set_size){ 
         std::cout << warning << "Sequence set too small for the requested sample size\n";
         std::cout << warning << "The whole set will be used.\n" ;
         sn = sequence_set_size;
@@ -517,7 +517,7 @@ int main(int argc, char const ** argv)
             print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
         
         // Just print a warning if we think adapter may have been trimmed.
-        if( first_n_vector[0].second < 0.1 * sn){
+        if( v>0 and  first_n_vector[0].second < 0.1 * sn){
             std::cout << warning << "The most frequent kmer has been found in less than 10% of the reads (" << first_n_vector[0].second << "/" << sn << ")" <<std::endl;
             std::cout << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
         }
