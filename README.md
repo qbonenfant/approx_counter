@@ -21,7 +21,7 @@ A simple assembly method can then be used to reconstruct the potential adapter.
 ## Compiling
 In order to compile this file, I recommend using the following command
 ~~~
-g++ -std=c++14 -fopenmp  -O4 -DNDEBUG -march=native  -mtune=native  adaptFinder.cpp -lrt -o adaptFinder
+g++ -std=c++14 -fopenmp  -O3 -DNDEBUG -march=native  -mtune=native  adaptFinder.cpp -lrt -o adaptFinder
 ~~~
 
 ## Usage
