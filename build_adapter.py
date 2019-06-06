@@ -50,7 +50,7 @@ def build_graph(count_file):
     g.remove_nodes_from( [node for node in g.nodes if  len(list(nx.all_neighbors(g,node))) == 0] )
 
     # Returning only the biggest connected component
-    return( g.subgraph(max(nx.weakly_connected_components(g), key= lambda x: get_weight(g,x))) )
+    return( g )
 
 
 
@@ -134,7 +134,7 @@ def heavy_path(g):
         also be selected.
     """
     
-    hv_path = dag_heaviest_path(g)
+    hv_path = dag_heaviest_path(g.subgraph(max(nx.weakly_connected_components(g), key= lambda x: get_weight(g,x))))
 
     for n in hv_path:
         g.node[n]["path"] = (g.node[n]["path"] + ",heavy").lstrip(",")
@@ -143,7 +143,7 @@ def heavy_path(g):
 
 
 def longest_path(g):
-    lg_path = nx.dag_longest_path(g)
+    lg_path = nx.dag_longest_path(g.subgraph(max(nx.weakly_connected_components(g), key= lambda x: get_weight(g,x))))
 
     for n in lg_path:
         g.node[n]["path"] = (g.node[n]["path"] + ",long").lstrip(",")
