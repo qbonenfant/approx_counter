@@ -33,6 +33,8 @@ typedef std::vector<std::pair<unsigned,unsigned> > pair_vector;
 typedef StringSet<DnaString> sequence_set_type;
 // vector of boolean used to keep track of kmer positions count.
 typedef std::vector<bool>  bit_field;
+// config file parameter map
+typedef std::unordered_map<std::string, std::string> arg_map;
 
 
 
@@ -84,6 +86,47 @@ void print(TPrintType text, int tab = 0)
         std::cout << "\t";
     }
     std::cout << text << std::endl;
+}
+
+/**
+    Extremly simple config file parser.
+    format  : args=value , one per line
+    comments: #
+    @param the path to config file
+    @return a map containing the set parameters.
+*/
+arg_map parse_config(std::string inputFile){
+
+    arg_map params;
+
+    std::ifstream inFile;
+    inFile.open(inputFile);
+    if(inFile.is_open()){
+        std::string line;
+        while( std::getline(inFile, line) ){
+            std::string arg = "";
+            std::string val = "";
+            bool sep = false;
+            if(line[0] != '#'){
+                for(auto c: line){
+                    if(c == '='){
+                        sep = true;
+                    }
+                    else if( c!= ' '){
+                        if(sep)
+                            val+=c;
+                        else
+                            arg+=c;
+                    }
+                }
+                params[arg] = val;
+            }
+        }
+    }
+    else{
+        std::cout << "could not open config file\n";
+    }
+    return(params);
 }
 
 
@@ -417,6 +460,11 @@ int main(int argc, char const ** argv)
         seqan::ArgParseArgument::STRING, "exact count output file"));
 
     addOption(parser, seqan::ArgParseOption(
+        "conf", "config", "path to the config file",
+        seqan::ArgParseArgument::STRING, "config file"));
+
+
+    addOption(parser, seqan::ArgParseOption(
         "o", "out_file", "path to the output file, default is ./out.txt",
         seqan::ArgParseArgument::STRING, "output file"));
 
@@ -431,6 +479,7 @@ int main(int argc, char const ** argv)
     // Extract option values and print them.
     std::string output = "out.txt";     // output file
     std::string exact_out;   // exact count output file
+    std::string config_file; // configuration file
     unsigned nb_thread = 4;  // default number of thread
     unsigned k = 16;         // kmer size, 2<= k <= 32
     unsigned sl = 100 ;      // sequence sampling size
@@ -439,7 +488,24 @@ int main(int argc, char const ** argv)
     double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
     unsigned v = 1;
 
-    // Fetching values
+
+    getOptionValue(config_file, parser, "conf");
+
+    // reading config file, if any, and adjusting variables.
+    if(not config_file.empty() ){
+        arg_map params = parse_config(config_file);
+        lc        = params.count("lc" )>0 ? std::stof(params["lc"] ) : lc;
+        k         = params.count("k"  )>0 ? std::stoi(params["k"]  ) : k;
+        v         = params.count("v"  )>0 ? std::stoi(params["v"]  ) : v;
+        sn        = params.count("sn" )>0 ? std::stoi(params["sn"] ) : sn;
+        sl        = params.count("sl" )>0 ? std::stoi(params["sl"] ) : sl;
+        limit     = params.count("lim")>0 ? std::stoi(params["lim"]) : limit;
+        nb_thread = params.count("nt" )>0 ? std::stoi(params["nt"] ) : limit;
+
+        exact_out = params.count("e" )>0 ? params["e"] : exact_out;    
+    }
+
+    // If options have been manually set, override config.
     getOptionValue(limit, parser, "lim");
     getOptionValue(lc, parser, "lc");
     getOptionValue(k, parser, "k");
@@ -453,6 +519,7 @@ int main(int argc, char const ** argv)
     getArgumentValue(input_file, parser, 0);
 
 
+
     std::string warning = "/!\\ WARNING: ";
 
     // checking value for k
@@ -460,13 +527,25 @@ int main(int argc, char const ** argv)
         throw std::invalid_argument("kmer size must be between 2 and 32 (included)");
     }
     
+    // print parameters
+    if(v>0){
+        std::cout << "Kmer size:             " << k         << std::endl;
+        std::cout << "Sampled sequences:     " << sn        << std::endl;
+        std::cout << "Sampling length        " << sl        << std::endl;
+        std::cout << "Number of kept kmer:   " << limit     << std::endl;
+        std::cout << "LC filter threshold:   " << lc        << std::endl;
+        std::cout << "Nb thread:             " << nb_thread << std::endl;
+        std::cout << "Verbosity level:       " << v         << std::endl;
+    }
+
     // number of tab to display
     int tab_level = 0;
-
     // adjusting low complexity to kmer size
     lc = adjust_threshold( lc, 16, k );
     if(v>0)
-        print("LC filter adjusted to " + std::to_string(lc),tab_level);
+        std::cout << "Adjusted LC threshold: " << lc << std::endl;
+
+
 
     // Parsing input fasta file.
     // It may be replaced by a custom version
