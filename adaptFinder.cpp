@@ -500,7 +500,7 @@ int main(int argc, char const ** argv)
         sn        = params.count("sn" )>0 ? std::stoi(params["sn"] ) : sn;
         sl        = params.count("sl" )>0 ? std::stoi(params["sl"] ) : sl;
         limit     = params.count("lim")>0 ? std::stoi(params["lim"]) : limit;
-        nb_thread = params.count("nt" )>0 ? std::stoi(params["nt"] ) : limit;
+        nb_thread = params.count("nt" )>0 ? std::stoi(params["nt"] ) : nb_thread;
 
         exact_out = params.count("e" )>0 ? params["e"] : exact_out;    
     }

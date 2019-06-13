@@ -2,6 +2,29 @@
 
 import sys
 import networkx as nx
+import argparse
+import shutil
+import os
+#This class come from the Porechop tool
+# https://github.com/rrwick/Porechop
+class MyHelpFormatter(argparse.HelpFormatter):
+    """
+    This is a custom formatter class for argparse. It allows for some custom formatting,
+    in particular for the help texts with multiple options (like bridging mode and verbosity level).
+    http://stackoverflow.com/questions/3853722
+    """
+    def __init__(self, prog):
+        terminal_width = shutil.get_terminal_size().columns
+        os.environ['COLUMNS'] = str(terminal_width)
+        max_help_position = min(max(24, terminal_width // 3), 40)
+        super().__init__(prog, max_help_position=max_help_position)
+
+    def _get_help_string(self, action):
+        help_text = action.help
+        if action.default != argparse.SUPPRESS and 'default' not in help_text.lower() and \
+                action.default is not None:
+            help_text += ' (default: ' + str(action.default) + ')'
+        return help_text
 
 
 def get_weight(g,path):
@@ -151,43 +174,98 @@ def longest_path(g):
     return(lg_path[0][:-1] + "".join( el[-1] for el in lg_path ))
 
 
-count_file = sys.argv[1]
+
+def get_arguments():
+    """
+    Parse the command line arguments.
+    """
+    
+    parser = argparse.ArgumentParser(description='Adapter builder'
+                                                 'Rebuild adapter from kmer counting file',
+                                     formatter_class=MyHelpFormatter, add_help=False)
+
+    main_group = parser.add_argument_group('Main options')
+    main_group.add_argument('-s', '--start_counter', required=False,
+                            help='Counter file for the starting adapter')
+    main_group.add_argument('-e', '--end_counter', required=False,
+                            help='Counter file for the end adapter')
+
+    main_group.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Level of progress information: 0 = none, 1 = all')
+
+    main_group.add_argument('-g','--export_graph', action='store_true',
+                                    help='Export the overlap graph')
+
+
+    help_args = parser.add_argument_group('Help')
+    help_args.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
+                           help='Show this help message and exit')
+    
+    args = parser.parse_args()
+
+
+    return args
+
+
+args = get_arguments()
+
+start_file = args.start_counter
+end_file = args.end_counter
+verbosity = args.verbosity
   
-# Building graph
-g = build_graph( count_file )
 
-# preping for anotation
-nx.set_node_attributes(g, "", "path" )
-
-# greedy adapters
-greedy_adapter = greedy_assembl(g)
-
-# Longest path, catching exception to avoid loops
-try:
-    long_adapter = longest_path(g)
-
-except:
-    print("Could not compute adaper using longest path  method", file = sys.stderr)
-    print("The resulting graph probably contains a loop.", file = sys.stderr)
-    long_adapter  = ""
-
-# heaviest path adapter  
-try:
-    heavy_adapter = heavy_path(g)
-except:
-    print("Could not compute adaper using heaviest path  method", file = sys.stderr)
-    print("The resulting graph probably contains a loop.", file = sys.stderr)
-    heavy_adapter = ""
+greedy_adapter = {}
+long_adapter   = {}
+heavy_adapter  = {}
 
 
-#Exporting graph
-path = "./adapter_graph.graphml"
-nx.write_graphml(g,path)
+
+for count_file in [start_file, end_file]:
+    if(count_file):
+        
+        # Building graph        
+        g = build_graph( count_file )
+        
+        # preping for anotation
+        nx.set_node_attributes(g, "", "path" )
+        
+        #################
+        # greedy adapters
+        greedy_adapter[count_file] = greedy_assembl(g)
+
+        ##############
+        # Longest path
+        try:
+            long_adapter[count_file] = longest_path(g)
+
+        except:
+            if(verbosity>0):
+                print("Could not compute adapter using longest path  method", file = sys.stderr)
+                print("The resulting graph probably contains a loop.", file = sys.stderr)
+            long_adapter[count_file]  = ""
+
+        ###############
+        # heaviest path
+        try:
+            heavy_adapter[count_file] = heavy_path(g)
+        except:
+            if(verbosity>0):
+                print("Could not compute adapter using heaviest path  method", file = sys.stderr)
+                print("The resulting graph probably contains a loop.", file = sys.stderr)
+            heavy_adapter[count_file] = ""
+
+        #Exporting graph
+        if(args.export_graph):
+            path =  count_file + ".graphml"
+            nx.write_graphml(g,path)
+
 
 # printing adapters
-print("Greedy")
-print(greedy_adapter)
-print("Long")
-print(long_adapter)
-print("Heavy")
-print(heavy_adapter)
+
+for adapt_name, adapt_dict  in [("greedy",greedy_adapter),("longest_path",long_adapter), ("heaviest_path", heavy_adapter)]:
+
+    print(adapt_name)    
+    if(start_file):
+        print(adapt_dict[start_file])
+    if(end_file):
+        print(adapt_dict[end_file])
