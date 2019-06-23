@@ -124,7 +124,7 @@ arg_map parse_config(std::string inputFile){
         }
     }
     else{
-        std::cout << "could not open config file\n";
+        std::cout << "/!\\ WARNING: Could not open config file\n";
     }
     return(params);
 }
