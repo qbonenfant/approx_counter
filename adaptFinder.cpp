@@ -11,7 +11,7 @@
 #include <time.h>
 #include <stdexcept>
 #include <unordered_map>
-
+#include <set>
 
 using namespace seqan;
 
@@ -26,16 +26,17 @@ typedef FastFMIndexConfig<void, uint32_t, 2, 1> TFastConfig;
 using index_t = Index<StringSet<DnaString>, BidirectionalIndex<FMIndex<void,TFastConfig> > >;
 
 // counter type, using unordered map.
-typedef std::unordered_map<uint,uint> counter;
+using counter = std::unordered_map<uint,uint>;
 // pair vector
-typedef std::vector<std::pair<unsigned,unsigned> > pair_vector;
+using pair_vector = std::vector<std::pair<unsigned,unsigned> > ;
 // type of sequence set
-typedef StringSet<DnaString> sequence_set_type;
+using sequence_set_type = StringSet<DnaString> ;
 // vector of boolean used to keep track of kmer positions count.
-typedef std::vector<bool>  bit_field;
+using bit_field = std::vector<bool>  ;
 // config file parameter map
-typedef std::unordered_map<std::string, std::string> arg_map;
-
+using arg_map = std::unordered_map<std::string, std::string>;
+// Set of kmers (2bit representation)
+using kmer_set_t = std::set<unsigned>;
 
 
 /**
@@ -91,7 +92,7 @@ void print(TPrintType text, int tab = 0)
 /**
     Extremly simple config file parser.
     format  : args=value , one per line
-    comments: #
+    comments: #  on line start
     @param the path to config file
     @return a map containing the set parameters.
 */
@@ -225,6 +226,66 @@ inline  bool haveLowComplexity(unsigned kmer, uint8_t k, float threshold){
     return s>= threshold;
 }
 
+
+/**
+    Check if the kmer is autorised or not
+    @param the kmer to test, in 2 bit representation, cast as an unsigned int
+    @param a set containing the forbidden kmers
+    @return True if the kmer is contained in the set
+*/
+inline  bool isForbiddenKmer(unsigned kmer, kmer_set_t & kmer_set){
+    return( kmer_set.find(kmer) != kmer_set.end() ) ;
+}
+
+/**
+    Parse a kmer list file and return a kmer set.
+    @param the file containging a list of kmer to exclude
+    @return A kmer set (set of unsigned)
+*/
+kmer_set_t parse_kmer_list(std::string kmer_file){
+    
+    kmer_set_t kmer_set;
+
+    std::ifstream kmer_file_stream(kmer_file);
+    // parsing file
+    if( kmer_file_stream.is_open()) {
+        for( std::string line; getline( kmer_file_stream, line );){
+            // inserting new kmer
+            kmer_set.insert(dna2int(DnaString(line)));
+        }
+        kmer_file_stream.close();
+    }
+    else{
+        std::cout << "/!\\ COULD NOT OPEN EXCLUDED KMER FILE, must quit\n";
+        exit(1);
+    }
+    return(kmer_set);
+}
+
+/**
+    Return the solid kmers. Kmer with count over threshold will be kept.
+    @param kmer count map (see count_kmer and error count)
+    @param The minimum abundance of the kmers to return
+    @return vector of pair containing the solids kmers and their associated count.
+*/
+pair_vector get_solid_kmers(counter & count_map, unsigned solid_km){
+
+    pair_vector kmer_vec(std::make_move_iterator(count_map.begin()), std::make_move_iterator(count_map.end()));
+    std::sort(kmer_vec.begin(), kmer_vec.end(), [](auto x, auto y){ return x.second > y.second;} );
+    unsigned limit = 0;
+    // Finding the position in the vector where kmer count is no longer high enough
+    for(auto kmer_count: kmer_vec){
+        if(kmer_count.second >= solid_km ){
+            limit ++;
+        }
+        else{
+            break;
+        }
+    }
+    kmer_vec.resize(limit);
+    return(kmer_vec);
+}
+
 /**
     Return the first top kmers, ranked by count, descending.
     @param kmer count map (see count_kmer and error count)
@@ -285,18 +346,26 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_
         
         // current sequence id
         seq_id = vec[i];
+        
+        // asjusting cut size to read length, if it is too short.
+        unsigned current_cut_size = std::min(unsigned(length(sequence_set[ seq_id ])), cut_size);
 
-        // we also need to check that the sequence is
-        // at least long enough to contains both adapters.
-        if( length(sequence_set[ seq_id ]) >= cut_size * 2 ){
-            if(bot){
-                appendValue(sample, suffix(sequence_set[ seq_id ], length(sequence_set[ seq_id ]) - 1 - cut_size ));
-            }
-            else{
-                appendValue(sample, prefix(sequence_set[ seq_id ],cut_size));
-            }
-            nb_seq +=1;
+        if(current_cut_size < cut_size and v >= 2){
+            print("/!\\Cut size is longer that current read!");
         }
+
+        // // we also need to check that the sequence is
+        // // at least long enough to contains both adapters.
+        // if( length(sequence_set[ seq_id ]) >= cut_size * 2 ){
+        if(bot){
+            appendValue(sample, suffix(sequence_set[ seq_id ], length(sequence_set[ seq_id ]) - 1 - current_cut_size ));
+        }
+        else{
+            appendValue(sample, prefix(sequence_set[ seq_id ], current_cut_size));
+        }
+        
+        nb_seq +=1;
+        // }
         i++;
     }
     if(v>0)
@@ -313,7 +382,7 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_
     @return a map of the kmer count, with a kmer hash as key.
 
 */
-counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold){
+counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold, kmer_set_t & kmer_set){
 
     counter count;
     unsigned base = std::pow(2,(2*k))-1;
@@ -325,7 +394,7 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold){
             
             n <<= 2; 
             n = (n & base) |  (uint8_t)(seq[i]);
-            if(not haveLowComplexity(n,k,threshold)){
+            if(not haveLowComplexity(n,k,threshold) and not isForbiddenKmer(n,kmer_set)){
                 count[n] +=1 ;
             }           
             i++;
@@ -346,7 +415,7 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold){
 */
 counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, uint8_t nb_thread, uint8_t k, uint8_t v){
     
-    const uint8_t MAXERR = 2; // Max number of errors, need to be fixed at compile time
+    const uint8_t MAXERR = 1; // Max number of errors, need to be fixed at compile time
 
     unsigned sample_size = length(sequences);
     if(v>0)
@@ -463,6 +532,14 @@ int main(int argc, char const ** argv)
         "conf", "config", "path to the config file",
         seqan::ArgParseArgument::STRING, "config file"));
 
+    addOption(parser, seqan::ArgParseOption(
+        "fk", "forbidden_kmer", "take a file containing 'forbidden' kmers, excluding them from the search pool. One kmer per line.",
+        seqan::ArgParseArgument::STRING, "config file"));
+
+    addOption(parser, seqan::ArgParseOption(
+        "sk", "solid_km", "Use solid kmer instead of most frequents. This option will override sample number (-sn / --sample_n).",
+        seqan::ArgParseArgument::INTEGER, "INT"));
+
 
     addOption(parser, seqan::ArgParseOption(
         "o", "out_file", "path to the output file, default is ./out.txt",
@@ -480,13 +557,16 @@ int main(int argc, char const ** argv)
     std::string output = "out.txt";     // output file
     std::string exact_out;   // exact count output file
     std::string config_file; // configuration file
+    std::string forbid_kmer; // forbidden kmers file, one kmer per line.
+    unsigned solid_km;       // Use solid k-mer instead of most frequent
     unsigned nb_thread = 4;  // default number of thread
     unsigned k = 16;         // kmer size, 2<= k <= 32
     unsigned sl = 100 ;      // sequence sampling size
     unsigned sn = 10000;     // number of sequence sampled
     unsigned limit = 500;    // number of kmers to keep.
     double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
-    unsigned v = 1;
+    unsigned v = 1;          // verbosity
+
 
 
     getOptionValue(config_file, parser, "conf");
@@ -501,8 +581,10 @@ int main(int argc, char const ** argv)
         sl        = params.count("sl" )>0 ? std::stoi(params["sl"] ) : sl;
         limit     = params.count("lim")>0 ? std::stoi(params["lim"]) : limit;
         nb_thread = params.count("nt" )>0 ? std::stoi(params["nt"] ) : nb_thread;
-
-        exact_out = params.count("e" )>0 ? params["e"] : exact_out;    
+        solid_km  = params.count("sk" )>0 ? std::stoi(params["sk"] ) : solid_km;
+        
+        forbid_kmer = params.count("fk") >0 ? params["fk"] : forbid_kmer;
+        exact_out   = params.count("e")  >0 ? params["e"]  : exact_out;    
     }
 
     // If options have been manually set, override config.
@@ -515,10 +597,17 @@ int main(int argc, char const ** argv)
     getOptionValue(nb_thread, parser, "nt");
     getOptionValue(output, parser, "o");
     getOptionValue(exact_out, parser, "e");
+    getOptionValue(forbid_kmer, parser, "fk");
+    getOptionValue(solid_km, parser, "sk");
+    // input file, always required
     std::string input_file;
     getArgumentValue(input_file, parser, 0);
 
-
+    kmer_set_t kmer_set;
+    if(not forbid_kmer.empty()){
+        print("Parsing the fobidden kmer list");
+        kmer_set = parse_kmer_list(forbid_kmer);
+    }
 
     std::string warning = "/!\\ WARNING: ";
 
@@ -535,6 +624,9 @@ int main(int argc, char const ** argv)
         std::cout << "Number of kept kmer:   " << limit     << std::endl;
         std::cout << "LC filter threshold:   " << lc        << std::endl;
         std::cout << "Nb thread:             " << nb_thread << std::endl;
+        if(solid_km){
+            std::cout << "Solid kmers:             " << solid_km << std::endl;
+        }
         std::cout << "Verbosity level:       " << v         << std::endl;
     }
 
@@ -548,8 +640,6 @@ int main(int argc, char const ** argv)
 
 
     // Parsing input fasta file.
-    // It may be replaced by a custom version
-    // because SeqAn seems to use a lot of RAM.
     StringSet<CharString> ids;
     StringSet<DnaString> seqs;
     if(v>0)
@@ -585,13 +675,24 @@ int main(int argc, char const ** argv)
         // counting k-mers on the sampled sequences
         if(v>0)
             print("Exact k-mer count",tab_level);
-        counter count = count_kmers(sample, k, lc);
+        counter count = count_kmers(sample, k, lc, kmer_set);
         
 
         // keeping most frequents kmers
         if(v>0)
             print("Number of kmer found: " + std::to_string(count.size()), tab_level);
-        pair_vector first_n_vector = get_most_frequent(count, limit);
+        
+        // Either keep the most frequent kmers or keep solid kmers.
+        pair_vector first_n_vector;
+        if(solid_km){
+            print("Keeping solid k-mer",tab_level);
+            first_n_vector = get_solid_kmers(count, solid_km);
+        }
+        else{
+            print("Keeping most frequent k-mer",tab_level);
+            first_n_vector = get_most_frequent(count, limit);
+        }
+        
         if(v>0)
             print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
         
