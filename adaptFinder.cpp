@@ -685,11 +685,13 @@ int main(int argc, char const ** argv)
         // Either keep the most frequent kmers or keep solid kmers.
         pair_vector first_n_vector;
         if(solid_km){
-            print("Keeping solid k-mer",tab_level);
+            if(v>0)
+                print("Keeping solid k-mer",tab_level);
             first_n_vector = get_solid_kmers(count, solid_km);
         }
         else{
-            print("Keeping most frequent k-mer",tab_level);
+            if(v>0)
+                print("Keeping most frequent k-mer",tab_level);
             first_n_vector = get_most_frequent(count, limit);
         }
         
