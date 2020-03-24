@@ -540,6 +540,9 @@ int main(int argc, char const ** argv)
         "sk", "solid_km", "Use solid kmer instead of most frequents. This option will override sample number (-sn / --sample_n).",
         seqan::ArgParseArgument::INTEGER, "INT"));
 
+    addOption(parser, seqan::ArgParseOption(
+        "se", "skip_end", "Skip end adapter ressearch (only search start). /!\\ If this option is set, and adaptFinder is run trough PorechopABI, the --guess_only / -go MUST be set."
+        ));
 
     addOption(parser, seqan::ArgParseOption(
         "o", "out_file", "path to the output file, default is ./out.txt",
@@ -566,6 +569,7 @@ int main(int argc, char const ** argv)
     unsigned limit = 500;    // number of kmers to keep.
     double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
     unsigned v = 1;          // verbosity
+    bool skip_end = false;   // skip end adapter ressearch
 
 
 
@@ -582,7 +586,7 @@ int main(int argc, char const ** argv)
         limit     = params.count("lim")>0 ? std::stoi(params["lim"]) : limit;
         nb_thread = params.count("nt" )>0 ? std::stoi(params["nt"] ) : nb_thread;
         solid_km  = params.count("sk" )>0 ? std::stoi(params["sk"] ) : solid_km;
-        
+        skip_end  = params.count("se" )>0 ? true : false;
         forbid_kmer = params.count("fk") >0 ? params["fk"] : forbid_kmer;
         exact_out   = params.count("e")  >0 ? params["e"]  : exact_out;    
     }
@@ -599,10 +603,15 @@ int main(int argc, char const ** argv)
     getOptionValue(exact_out, parser, "e");
     getOptionValue(forbid_kmer, parser, "fk");
     getOptionValue(solid_km, parser, "sk");
+
+    // except for flags, check if they are set in either config or manually
+    skip_end = skip_end or isSet(parser, "skip_end");
+    
     // input file, always required
     std::string input_file;
     getArgumentValue(input_file, parser, 0);
 
+    // Set of forbidden k-mers.
     kmer_set_t kmer_set;
     if(not forbid_kmer.empty()){
         print("Parsing the fobidden kmer list");
@@ -625,7 +634,7 @@ int main(int argc, char const ** argv)
         std::cout << "LC filter threshold:   " << lc        << std::endl;
         std::cout << "Nb thread:             " << nb_thread << std::endl;
         if(solid_km){
-            std::cout << "Solid kmers:             " << solid_km << std::endl;
+            std::cout << "Solid kmers:           " << solid_km << std::endl;
         }
         std::cout << "Verbosity level:       " << v         << std::endl;
     }
@@ -656,10 +665,12 @@ int main(int argc, char const ** argv)
     }
 
 
-
+    // general flag for file output
     bool success = true;
+    
     // performing ressearch on both ends
     std::array<std::string, 2 > ends = {"start","end"};
+    
     bool bottom = false; // checking if we search top adapter(start) or bottom adapter (end)
     for(std::string which_end: ends){
 
@@ -710,6 +721,7 @@ int main(int argc, char const ** argv)
                 print("Exporting exact kmer count",tab_level);
             success = exportCounter(first_n_vector, k, exact_out + "." + which_end );
             if(!success){
+                std::cerr << "Error: Failed to export exact k-mer count" << std::endl ;
                 return(1);
             }
         }
@@ -724,13 +736,24 @@ int main(int argc, char const ** argv)
             print("Exporting approximate count",tab_level);
         success = exportCounter(sorted_error_count,k, output+ "." + which_end );
         if(!success){
+                std::cerr << "Error: Failed to export approximate k-mer count" << std::endl ;
                 return(1);
             }
         if(v>0)
             print("Done",tab_level);
         
         clear(sample);
-        bottom = true;
+        
+        // Shall we process read end ?
+        if(skip_end){
+            if(v>0)
+                print("Skipping end adapter ressearch");
+                break;
+        }
+        else{
+            bottom = true;
+        }
+        
         tab_level -= 1;
     }
     
