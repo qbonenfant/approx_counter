@@ -26,9 +26,9 @@ typedef FastFMIndexConfig<void, uint32_t, 2, 1> TFastConfig;
 using index_t = Index<StringSet<DnaString>, BidirectionalIndex<FMIndex<void,TFastConfig> > >;
 
 // counter type, using unordered map.
-using counter = std::unordered_map<uint,uint>;
+using counter = std::unordered_map<uint64_t,uint64_t>;
 // pair vector
-using pair_vector = std::vector<std::pair<unsigned,unsigned> > ;
+using pair_vector = std::vector<std::pair<uint64_t,uint64_t> > ;
 // type of sequence set
 using sequence_set_type = StringSet<DnaString> ;
 // vector of boolean used to keep track of kmer positions count.
@@ -36,20 +36,20 @@ using bit_field = std::vector<bool>  ;
 // config file parameter map
 using arg_map = std::unordered_map<std::string, std::string>;
 // Set of kmers (2bit representation)
-using kmer_set_t = std::set<unsigned>;
+using kmer_set_t = std::set<uint64_t>;
 
 
 /**
-    Convert a Seqan DnaString to unsigned int.
+    Convert a Seqan DnaString to uint64_t int.
     SeqAn already store DnaString in 2 bit representation,
     but it is not easy to access it "as is" or to use it
     as key in a hash map.
     @param The sequence to convert
-    @return the kmer in 2 bit format, as an unsigned int.
+    @return the kmer in 2 bit format, as an uint64_t int.
 */
-inline unsigned dna2int(DnaString seq){
+inline uint64_t dna2int(DnaString seq){
     
-    unsigned value = 0;
+    uint64_t value = 0;
     for(auto c : seq){
         value = value << 2 | (uint8_t)(c);
     }
@@ -57,12 +57,12 @@ inline unsigned dna2int(DnaString seq){
 }
 
 /**
-    Convert an unsigned int back to Seqan DnaString
+    Convert an uint64_t int back to Seqan DnaString
     @param the integer to convert
     @param the size of the kmer
     @return the kmer in SeqAn DnaString format
 */
-inline DnaString int2dna(unsigned value, uint8_t k){
+inline DnaString int2dna(uint64_t value, uint8_t k){
     std::string seq = "";
     for(int i = 0; i< k; i++){
         seq = DNA[value & 3] + seq;
@@ -187,9 +187,9 @@ float adjust_threshold(float c_old, uint8_t k_old, uint8_t k_new ){
     @return the sum
 */
 template<typename TVector>
-inline unsigned vectorSum(TVector vec)
+inline uint64_t vectorSum(TVector vec)
 {
-    unsigned res = 0;
+    uint64_t res = 0;
     for(auto it: vec)
     {
         res += it;
@@ -199,14 +199,14 @@ inline unsigned vectorSum(TVector vec)
 
 /**
     Check the complexity of a kmer
-    @param the kmer to test, in 2 bit representation, cast as an unsigned int
+    @param the kmer to test, in 2 bit representation, cast as an uint64_t int
     @param k the size of said kmer
     @param threshold for the low complexity filter.
     @return True if the kmer contains low complexity region
 */
-inline  bool haveLowComplexity(unsigned kmer, uint8_t k, float threshold){
+inline  bool haveLowComplexity(uint64_t kmer, uint8_t k, float threshold){
     
-    unsigned counts[16] = { 0 }; // 16 possibles dimers
+    uint64_t counts[16] = { 0 }; // 16 possibles dimers
     // reading using sliding window of 2
     for(int i = 0; i < k-1; i++){
         // storing dimers as 2 * 2 bits
@@ -229,18 +229,18 @@ inline  bool haveLowComplexity(unsigned kmer, uint8_t k, float threshold){
 
 /**
     Check if the kmer is autorised or not
-    @param the kmer to test, in 2 bit representation, cast as an unsigned int
+    @param the kmer to test, in 2 bit representation, cast as an uint64_t int
     @param a set containing the forbidden kmers
     @return True if the kmer is contained in the set
 */
-inline  bool isForbiddenKmer(unsigned kmer, kmer_set_t & kmer_set){
+inline  bool isForbiddenKmer(uint64_t kmer, kmer_set_t & kmer_set){
     return( kmer_set.find(kmer) != kmer_set.end() ) ;
 }
 
 /**
     Parse a kmer list file and return a kmer set.
     @param the file containging a list of kmer to exclude
-    @return A kmer set (set of unsigned)
+    @return A kmer set (set of uint64_t)
 */
 kmer_set_t parse_kmer_list(std::string kmer_file){
     
@@ -268,11 +268,11 @@ kmer_set_t parse_kmer_list(std::string kmer_file){
     @param The minimum abundance of the kmers to return
     @return vector of pair containing the solids kmers and their associated count.
 */
-pair_vector get_solid_kmers(counter & count_map, unsigned solid_km){
+pair_vector get_solid_kmers(counter & count_map, uint64_t solid_km){
 
     pair_vector kmer_vec(std::make_move_iterator(count_map.begin()), std::make_move_iterator(count_map.end()));
     std::sort(kmer_vec.begin(), kmer_vec.end(), [](auto x, auto y){ return x.second > y.second;} );
-    unsigned limit = 0;
+    uint64_t limit = 0;
     // Finding the position in the vector where kmer count is no longer high enough
     for(auto kmer_count: kmer_vec){
         if(kmer_count.second >= solid_km ){
@@ -292,7 +292,7 @@ pair_vector get_solid_kmers(counter & count_map, unsigned solid_km){
     @param number of kmers to return
     @return vector of pair containing the most frequent kmers and their associated count.
 */
-pair_vector get_most_frequent(counter & count_map, unsigned limit){
+pair_vector get_most_frequent(counter & count_map, uint64_t limit){
 
     pair_vector kmer_vec(std::make_move_iterator(count_map.begin()), std::make_move_iterator(count_map.end()));
     std::sort(kmer_vec.begin(), kmer_vec.end(), [](auto x, auto y){ return x.second > y.second;} );
@@ -310,13 +310,13 @@ pair_vector get_most_frequent(counter & count_map, unsigned limit){
     @param Size of the sampled sequence.
     @return A set of sample sequences cut to size.
 */
-sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_sample, unsigned cut_size, bool bot, uint8_t v){
+sequence_set_type sampleSequences(sequence_set_type & sequence_set, uint64_t nb_sample, uint64_t cut_size, bool bot, uint8_t v){
     sequence_set_type sample;
     
     // Initialising the random seed
     srand(time(0));
 
-    unsigned sequence_set_size = length(sequence_set);
+    uint64_t sequence_set_size = length(sequence_set);
     // Building vector with all possible seq indice
     std::vector<int> vec(sequence_set_size) ; 
     std::iota(std::begin(vec), std::end(vec), 0);
@@ -327,9 +327,9 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_
     std::shuffle(vec.begin(), vec.end(), g);
 
     // counters
-    unsigned nb_seq = 0;
-    unsigned i = 0;
-    unsigned seq_id;
+    uint64_t nb_seq = 0;
+    uint64_t i = 0;
+    uint64_t seq_id;
 
     // display
     if(v>0){
@@ -348,7 +348,7 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_
         seq_id = vec[i];
         
         // asjusting cut size to read length, if it is too short.
-        unsigned current_cut_size = std::min(unsigned(length(sequence_set[ seq_id ])), cut_size);
+        uint64_t current_cut_size = std::min(uint64_t(length(sequence_set[ seq_id ])), cut_size);
 
         if(current_cut_size < cut_size and v >= 2){
             print("/!\\Cut size is longer that current read!");
@@ -385,10 +385,10 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, unsigned nb_
 counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold, kmer_set_t & kmer_set){
 
     counter count;
-    unsigned base = std::pow(2,(2*k))-1;
+    uint64_t base = std::pow(2,(2*k))-1;
     for(auto seq: sequences){
         // First kmer
-        unsigned n = dna2int(DnaString(prefix(seq,k-1)));
+        uint64_t n = dna2int(DnaString(prefix(seq,k-1)));
         int i = k-1;
         while(i < length(seq)){ 
             
@@ -415,9 +415,9 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold, k
 */
 counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, uint8_t nb_thread, uint8_t k, uint8_t v){
     
-    const uint8_t MAXERR = 1; // Max number of errors, need to be fixed at compile time
+    const uint8_t MAXERR = 2; // Max number of errors, need to be fixed at compile time
 
-    unsigned sample_size = length(sequences);
+    uint64_t sample_size = length(sequences);
     if(v>0)
         print("Preparing index",1);
     index_t  index(sequences);
@@ -443,7 +443,7 @@ counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, ui
         {
             for (auto occ : getOccurrences(iter)){
                 
-                unsigned read_id = getValueI1(occ);
+                uint64_t read_id = getValueI1(occ);
                 tcount[errors][read_id] = true;
                 }
         };
@@ -464,14 +464,14 @@ counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, ui
             for(int i=0; i<3; i++){
                 tcount[i] = bit_field(sample_size,false);
             }
-            // 2 bit encoded kmer as unsigned int
-            unsigned kmer = exact_count[km_id].first;
+            // 2 bit encoded kmer as uint64_t int
+            uint64_t kmer = exact_count[km_id].first;
             // ressearch, filling tcount
             find<0, MAXERR >(delegateParallel, index, int2dna(kmer,k), EditDistance() );
 
             
             // computing total number of occurences
-            unsigned total = 0;
+            uint64_t total = 0;
             for(auto bit_count: tcount){
                 total +=  vectorSum(bit_count);
             }
@@ -561,14 +561,14 @@ int main(int argc, char const ** argv)
     std::string exact_out;   // exact count output file
     std::string config_file; // configuration file
     std::string forbid_kmer; // forbidden kmers file, one kmer per line.
-    unsigned solid_km;       // Use solid k-mer instead of most frequent
-    unsigned nb_thread = 4;  // default number of thread
-    unsigned k = 16;         // kmer size, 2<= k <= 32
-    unsigned sl = 100 ;      // sequence sampling size
-    unsigned sn = 10000;     // number of sequence sampled
-    unsigned limit = 500;    // number of kmers to keep.
+    uint64_t solid_km;       // Use solid k-mer instead of most frequent
+    uint64_t nb_thread = 4;  // default number of thread
+    uint64_t k = 16;         // kmer size, 2<= k <= 32
+    uint64_t sl = 100 ;      // sequence sampling size
+    uint64_t sn = 10000;     // number of sequence sampled
+    uint64_t limit = 500;    // number of kmers to keep.
     double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
-    unsigned v = 1;          // verbosity
+    uint64_t v = 1;          // verbosity
     bool skip_end = false;   // skip end adapter ressearch
 
 
@@ -657,7 +657,7 @@ int main(int argc, char const ** argv)
     readRecords(ids, seqs, seqFileIn);
     
     // Checking if we can sample the requested number of sequences, else return the whole set
-    unsigned sequence_set_size = length(seqs);
+    uint64_t sequence_set_size = length(seqs);
     if( v>0 and sn > sequence_set_size){ 
         std::cout << warning << "Sequence set too small for the requested sample size\n";
         std::cout << warning << "The whole set will be used.\n" ;
