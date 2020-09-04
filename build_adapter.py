@@ -93,7 +93,7 @@ def greedy_assembl(g):
     found = True
     used = [km]
     #annotating graph
-    g.node[km]["path"] = (g.node[km]["path"] + ",greedy").lstrip(",")
+    g.nodes[km]["path"] = (g.nodes[km]["path"] + ",greedy").lstrip(",")
 
     while(found):
         found = False
@@ -105,14 +105,14 @@ def greedy_assembl(g):
                     ov = direct
                     found = True
                     used.append(km2)
-                    g.node[km2]["path"] = (g.node[km2]["path"] + ",greedy").lstrip(",")
+                    g.nodes[km2]["path"] = (g.nodes[km2]["path"] + ",greedy").lstrip(",")
                     break
 
                 elif(reverse != "" and direct == ""):   
                     ov = reverse
                     found = True
                     used.append(km2)
-                    g.node[km2]["path"] = (g.node[km2]["path"] + ",greedy").lstrip(",")
+                    g.nodes[km2]["path"] = (g.nodes[km2]["path"] + ",greedy").lstrip(",")
 
                     break
     return(ov)
@@ -160,7 +160,7 @@ def heavy_path(g):
     hv_path = dag_heaviest_path(g.subgraph(max(nx.weakly_connected_components(g), key= lambda x: get_weight(g,x))))
 
     for n in hv_path:
-        g.node[n]["path"] = (g.node[n]["path"] + ",heavy").lstrip(",")
+        g.nodes[n]["path"] = (g.nodes[n]["path"] + ",heavy").lstrip(",")
 
     return( hv_path[0][:-1] + "".join( el[-1] for el in hv_path ) )
 
@@ -169,7 +169,7 @@ def longest_path(g):
     lg_path = nx.dag_longest_path(g.subgraph(max(nx.weakly_connected_components(g), key= lambda x: get_weight(g,x))))
 
     for n in lg_path:
-        g.node[n]["path"] = (g.node[n]["path"] + ",long").lstrip(",")
+        g.nodes[n]["path"] = (g.nodes[n]["path"] + ",long").lstrip(",")
 
     return(lg_path[0][:-1] + "".join( el[-1] for el in lg_path ))
 
