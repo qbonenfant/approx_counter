@@ -143,6 +143,7 @@ def greedy_assembl(g):
     @param the De Bruijn graph of kmers
     @return the longest debruijn sequence starting by the first kmer
     """
+<<<<<<< HEAD
     start = max(g.nodes, key=lambda x: g.node[x]["weight"])
     path = [start]
 
@@ -171,6 +172,41 @@ def greedy_assembl(g):
                 path = [left_node] + path
     return(path)
 
+=======
+    kmer_dict = g.nodes(data=True)
+    kmer_list = list( dict(kmer_dict).keys() )
+    kmer_list.sort( key= lambda x: kmer_dict[x]['weight'])
+    kmer_list.reverse()
+
+    km = kmer_list[0]
+    ov = km
+    found = True
+    used = [km]
+    #annotating graph
+    g.nodes[km]["path"] = (g.nodes[km]["path"] + ",greedy").lstrip(",")
+
+    while(found):
+        found = False
+        for km2 in kmer_list:
+            if(km2 not in used):
+                direct = haveOverlap(ov, km2)
+                reverse = haveOverlap(km2, ov)
+                if(direct != "" and reverse == ""):
+                    ov = direct
+                    found = True
+                    used.append(km2)
+                    g.nodes[km2]["path"] = (g.nodes[km2]["path"] + ",greedy").lstrip(",")
+                    break
+
+                elif(reverse != "" and direct == ""):   
+                    ov = reverse
+                    found = True
+                    used.append(km2)
+                    g.nodes[km2]["path"] = (g.nodes[km2]["path"] + ",greedy").lstrip(",")
+
+                    break
+    return(ov)
+>>>>>>> tmp
 
 def dag_heaviest_path(G):
     """Returns the heaviest path in a DAG
@@ -216,7 +252,7 @@ def heavy_path(g):
 
     # annotating graph
     for n in hv_path:
-        g.node[n]["path"] = (g.node[n]["path"] + ",heavy").lstrip(",")
+        g.nodes[n]["path"] = (g.nodes[n]["path"] + ",heavy").lstrip(",")
 
     return(hv_path)
 
@@ -229,7 +265,7 @@ def longest_path(g):
 
     # annotating graph
     for n in lg_path:
-        g.node[n]["path"] = (g.node[n]["path"] + ",long").lstrip(",")
+        g.nodes[n]["path"] = (g.nodes[n]["path"] + ",long").lstrip(",")
 
     return(lg_path)
 
