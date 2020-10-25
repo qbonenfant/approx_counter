@@ -659,8 +659,8 @@ int main(int argc, char const ** argv)
     // Checking if we can sample the requested number of sequences, else return the whole set
     uint64_t sequence_set_size = length(seqs);
     if(sn > sequence_set_size){ 
-        std::err << warning << "Sequence set too small for the requested sample size\n";
-        std::err << warning << "The whole set will be used.\n" ;
+        std::cerr << warning << "Sequence set too small for the requested sample size\n";
+        std::cerr << warning << "The whole set will be used.\n" ;
         sn = sequence_set_size;
     }
 
