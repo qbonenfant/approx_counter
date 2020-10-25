@@ -561,7 +561,7 @@ int main(int argc, char const ** argv)
     std::string exact_out;   // exact count output file
     std::string config_file; // configuration file
     std::string forbid_kmer; // forbidden kmers file, one kmer per line.
-    uint64_t solid_km;       // Use solid k-mer instead of most frequent
+    uint64_t solid_km= 0;       // Use solid k-mer instead of most frequent
     uint64_t nb_thread = 4;  // default number of thread
     uint64_t k = 16;         // kmer size, 2<= k <= 32
     uint64_t sl = 100 ;      // sequence sampling size
@@ -633,7 +633,7 @@ int main(int argc, char const ** argv)
         std::cout << "Number of kept kmer:   " << limit     << std::endl;
         std::cout << "LC filter threshold:   " << lc        << std::endl;
         std::cout << "Nb thread:             " << nb_thread << std::endl;
-        if(solid_km){
+        if(solid_km != 0){
             std::cout << "Solid kmers:           " << solid_km << std::endl;
         }
         std::cout << "Verbosity level:       " << v         << std::endl;
@@ -695,7 +695,7 @@ int main(int argc, char const ** argv)
         
         // Either keep the most frequent kmers or keep solid kmers.
         pair_vector first_n_vector;
-        if(solid_km){
+        if(solid_km != 0){
             if(v>0)
                 print("Keeping solid k-mer",tab_level);
             first_n_vector = get_solid_kmers(count, solid_km);
