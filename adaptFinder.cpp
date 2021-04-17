@@ -199,6 +199,9 @@ inline uint64_t vectorSum(TVector vec)
 
 /**
     Check the complexity of a kmer
+    Our score is derived from 2006 DUST publication on
+    fast DNA sequence masking
+    https://doi.org/10.1089/cmb.2006.13.1028
     @param the kmer to test, in 2 bit representation, cast as an uint64_t int
     @param k the size of said kmer
     @param threshold for the low complexity filter.
