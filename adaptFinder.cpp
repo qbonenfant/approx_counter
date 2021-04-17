@@ -745,7 +745,7 @@ int main(int argc, char const ** argv)
 
         // Print a warning in stderr if we think adapter may have been trimmed.
         if(sorted_error_count[0].second < FREQ_THRESHOLD_WARNING * sn){
-            std::cerr << warning << "The most frequent kmer has been found in less than 10% of the reads after approximate count. ";
+            std::cerr << warning << "The most frequent kmer has been found in less than 10% of the reads " << which_end <<"s after approximate count. ";
             std::cerr << "(" << sorted_error_count[0].second << "/" << sn << " sequences)" <<std::endl;
             std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
         }
