@@ -21,6 +21,12 @@ const auto boot_time = std::chrono::steady_clock::now();
 // Alphabet used for 2 bit conversion
 const std::string DNA = "ACGT";
 
+// Max number of errors, need to be fixed at compile time
+const uint8_t MAXERR = 2; 
+
+// Frequency threshold warning
+const float FREQ_THRESHOLD_WARNING = 0.1;
+
 // Setting the index
 typedef FastFMIndexConfig<void, uint32_t, 2, 1> TFastConfig;
 using index_t = Index<StringSet<DnaString>, BidirectionalIndex<FMIndex<void,TFastConfig> > >;
@@ -418,7 +424,6 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold, k
 */
 counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, uint8_t nb_thread, uint8_t k, uint8_t v){
     
-    const uint8_t MAXERR = 2; // Max number of errors, need to be fixed at compile time
 
     uint64_t sample_size = length(sequences);
     if(v>0)
@@ -712,11 +717,6 @@ int main(int argc, char const ** argv)
         if(v>0)
             print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
         
-        // Just print a warning if we think adapter may have been trimmed.
-        if(first_n_vector[0].second < 0.1 * sn){
-            std::cerr << warning << "The most frequent kmer has been found in less than 10% of the reads (" << first_n_vector[0].second << "/" << sn << ")" <<std::endl;
-            std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
-        }
 
         // Exporting exact kmer count, if required
         if(not exact_out.empty() ){
@@ -733,7 +733,7 @@ int main(int argc, char const ** argv)
         if(v>0)
             print("Approximate k-mer count",tab_level);
         counter error_counter = errorCount(sample, first_n_vector, nb_thread, k, v);
-        pair_vector sorted_error_count = get_most_frequent(error_counter,limit);
+        pair_vector sorted_error_count = get_most_frequent(error_counter, limit);
 
         if(v>0)
             print("Exporting approximate count",tab_level);
@@ -742,6 +742,14 @@ int main(int argc, char const ** argv)
                 std::cerr << "Error: Failed to export approximate k-mer count" << std::endl ;
                 return(1);
             }
+
+        // Print a warning in stderr if we think adapter may have been trimmed.
+        if(sorted_error_count[0].second < FREQ_THRESHOLD_WARNING * sn){
+            std::cerr << warning << "The most frequent kmer has been found in less than 10% of the reads after approximate count. ";
+            std::cerr << "(" << sorted_error_count[0].second << "/" << sn << " sequences)" <<std::endl;
+            std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
+        }
+
         if(v>0)
             print("Done",tab_level);
         
