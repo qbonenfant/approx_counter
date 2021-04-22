@@ -72,7 +72,7 @@ def check_drop(path, g):
     for i in range(len(path) - 1, 1, -1):
         last = path[i]
         prev = path[i - 1]
-        if(g.node[prev]["weight"] / float(g.node[last]["weight"]) > CUT_RATIO):
+        if(g.nodes[prev]["weight"] / float(g.nodes[last]["weight"]) > CUT_RATIO):
             cut -= 1
         else:
             break
@@ -94,7 +94,7 @@ def check_drop_back(path, g):
     for i in range(len(path) - 1):
         first = path[i]
         nxt = path[i + 1]
-        if(g.node[nxt]["weight"] / float(g.node[first]["weight"]) > CUT_RATIO):
+        if(g.nodes[nxt]["weight"] / float(g.nodes[first]["weight"]) > CUT_RATIO):
             cut += 1
         else:
             break
@@ -143,46 +143,50 @@ def greedy_assembl(g):
     @param the De Bruijn graph of kmers
     @return the longest debruijn sequence starting by the first kmer
     """
-<<<<<<< HEAD
-    start = max(g.nodes, key=lambda x: g.node[x]["weight"])
+    start = max(g.nodes, key=lambda x: g.nodes[x]["weight"])
     path = [start]
 
     right_node = start
     left_node = start
     while(left_node or right_node):
+        # # DEBUG
+        # print("PATH")
+        # print(path)
 
         # forward extension
         if(right_node):
-            r_list = list(g.successors(right_node))
+            # # DEBUG
+            # print("R node",right_node)
+            r_list = [el for el in g.successors(right_node) if el not in path]
             if(not r_list):
                 right_node = None
             else:
-                right_node = max(r_list, key=lambda x: g.node[x]["weight"])
+                right_node = max(r_list, key=lambda x: g.nodes[x]["weight"])
                 path.append(right_node)
 
         # reverse extension
         if(left_node):
-            l_list = list(g.predecessors(left_node))
+            # # DEBUG
+            # print("L node", left_node)
+            l_list = [el for el in g.predecessors(left_node) if el not in path]
 
             if(not l_list):
                 left_node = None
             else:
-
-                left_node = max(l_list, key=lambda x: g.node[x]["weight"])
+                left_node = max(l_list, key=lambda x: g.nodes[x]["weight"])
                 path = [left_node] + path
     return(path)
 
-=======
     kmer_dict = g.nodes(data=True)
-    kmer_list = list( dict(kmer_dict).keys() )
-    kmer_list.sort( key= lambda x: kmer_dict[x]['weight'])
+    kmer_list = list(dict(kmer_dict).keys())
+    kmer_list.sort(key=lambda x: kmer_dict[x]['weight'])
     kmer_list.reverse()
 
     km = kmer_list[0]
     ov = km
     found = True
     used = [km]
-    #annotating graph
+    # annotating graph
     g.nodes[km]["path"] = (g.nodes[km]["path"] + ",greedy").lstrip(",")
 
     while(found):
@@ -198,7 +202,7 @@ def greedy_assembl(g):
                     g.nodes[km2]["path"] = (g.nodes[km2]["path"] + ",greedy").lstrip(",")
                     break
 
-                elif(reverse != "" and direct == ""):   
+                elif(reverse != "" and direct == ""):
                     ov = reverse
                     found = True
                     used.append(km2)
@@ -206,7 +210,6 @@ def greedy_assembl(g):
 
                     break
     return(ov)
->>>>>>> tmp
 
 def dag_heaviest_path(G):
     """Returns the heaviest path in a DAG
@@ -229,7 +232,7 @@ def dag_heaviest_path(G):
     dist = {}  # stores [node, distance] pair
     for node in nx.topological_sort(G):
         # pairs of dist,node for all incoming edges
-        pairs = [(dist[v][0] + G.node[v]["weight"], v) for v in G.pred[node]]
+        pairs = [(dist[v][0] + G.nodes[v]["weight"], v) for v in G.pred[node]]
         if pairs:
             dist[node] = max(pairs)
         else:
@@ -278,7 +281,7 @@ def greedy_path(g):
     gd_path = greedy_assembl(g)
     # annotating graph
     for n in gd_path:
-        g.node[n]["path"] = (g.node[n]["path"] + ",greedy").lstrip(",")
+        g.nodes[n]["path"] = (g.nodes[n]["path"] + ",greedy").lstrip(",")
     return(gd_path)
 
 ##############################################################################
@@ -309,7 +312,7 @@ def build_graph(count_file):
                 g.add_node(km, weight=int(nb))  # , path = "" )
 
     except FileNotFoundError:
-        print("\n/!\ Unable to open k-mer count file:", file=sys.stderr)
+        print("\n/!\\ Unable to open k-mer count file:", file=sys.stderr)
         print(count_file, file=sys.stderr)
         print("Either the file was moved, deleted, or filename is invalid.",
               file=sys.stderr)
@@ -401,9 +404,9 @@ def build_adapter(args):
                     cut_heavy_p = check_drop_back(heavy_p, g)
                 adapters["heavy"][which_end] = concat_path(cut_heavy_p)
 
-            except networkx.NetworkXNotImplemented:
-                print("\t/!\\ Could not compute " + which_end + " adaper \
-                      using heaviest path  method",
+            except nx.exception.NetworkXUnfeasible:
+                print("\t/!\\ Could not compute " + which_end + " adaper"+
+                      "using heaviest path  method",
                       file=sys.stderr)
                 print("\t/!\\ The resulting graph probably contains a loop.",
                       file=sys.stderr)
