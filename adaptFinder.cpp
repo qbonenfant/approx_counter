@@ -85,7 +85,7 @@ inline DnaString int2dna(uint64_t value, uint8_t k){
 */
 template<typename TPrintType>
 void print(TPrintType text, int tab = 0)
-{   
+{
 
     const auto milis = std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - boot_time).count();
     std::cout << "[" << milis << " ms]\t" ;
@@ -527,6 +527,9 @@ int main(int argc, char const ** argv)
     addOption(parser, seqan::ArgParseOption(
         "lim", "limit", "limit the number of kmer used after initial counting, default is 500",
         seqan::ArgParseArgument::INTEGER, "INT"));
+        addOption(parser, seqan::ArgParseOption(
+        "mr", "multi_run", "Number of time the count must be performed. Each count is exported separately.",
+        seqan::ArgParseArgument::INTEGER, "INT"));
 
      addOption(parser, seqan::ArgParseOption(
         "v", "verbosity", "Level of details printed out",
@@ -578,6 +581,7 @@ int main(int argc, char const ** argv)
     double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
     uint64_t v = 1;          // verbosity
     bool skip_end = false;   // skip end adapter ressearch
+    uint64_t nb_of_runs = 1; // Number of counts to run
 
 
 
@@ -596,7 +600,8 @@ int main(int argc, char const ** argv)
         solid_km  = params.count("sk" )>0 ? std::stoi(params["sk"] ) : solid_km;
         skip_end  = params.count("se" )>0 ? true : false;
         forbid_kmer = params.count("fk") >0 ? params["fk"] : forbid_kmer;
-        exact_out   = params.count("e")  >0 ? params["e"]  : exact_out;    
+        exact_out   = params.count("e")  >0 ? params["e"]  : exact_out;
+        nb_of_runs  = params.count("mr" )>0 ? std::stoi(params["mr"] ) : nb_of_runs;    
     }
 
     // If options have been manually set, override config.
@@ -611,6 +616,7 @@ int main(int argc, char const ** argv)
     getOptionValue(exact_out, parser, "e");
     getOptionValue(forbid_kmer, parser, "fk");
     getOptionValue(solid_km, parser, "sk");
+    getOptionValue(nb_of_runs, parser, "mr");
 
     // except for flags, check if they are set in either config or manually
     skip_end = skip_end or isSet(parser, "skip_end");
@@ -654,6 +660,10 @@ int main(int argc, char const ** argv)
     if(v>0)
         std::cout << "Adjusted LC threshold: " << lc << std::endl;
 
+    // if we run counts more than one time
+    if(v > 0 and nb_of_runs >1){
+        std::cout << "\nA total of " << nb_of_runs <<" runs will be performed."<< std::endl;
+    }
 
 
     // Parsing input fasta file.
@@ -663,111 +673,118 @@ int main(int argc, char const ** argv)
         print("Parsing FASTA file",tab_level);
     SeqFileIn seqFileIn(toCString(input_file));
     readRecords(ids, seqs, seqFileIn);
-    
-    // Checking if we can sample the requested number of sequences, else return the whole set
-    uint64_t sequence_set_size = length(seqs);
-    if(sn > sequence_set_size){ 
-        std::cerr << warning << "Sequence set too small for the requested sample size\n";
-        std::cerr << warning << "The whole set will be used.\n" ;
-        sn = sequence_set_size;
-    }
 
-
-    // general flag for file output
-    bool success = true;
-    
-    // performing ressearch on both ends
-    std::array<std::string, 2 > ends = {"start","end"};
-    
-    bool bottom = false; // checking if we search top adapter(start) or bottom adapter (end)
-    for(std::string which_end: ends){
-
-        tab_level += 1;
-        if(v>0){
-            print("Working on " + which_end + " adapter",tab_level - 1);
-            // sample and cut sequences to required length
-            print("Sampling",tab_level);
+    std::string run_suffix = "";
+    for(uint64_t current_run = 0; current_run < nb_of_runs; current_run++){
+        // If we build run than one count, add a suffix
+        if(nb_of_runs > 1){
+            run_suffix = "_" + std::to_string(current_run);
         }
-        sequence_set_type sample = sampleSequences(seqs, sn, sl, bottom, v);
-
-
-        // counting k-mers on the sampled sequences
-        if(v>0)
-            print("Exact k-mer count",tab_level);
-        counter count = count_kmers(sample, k, lc, kmer_set);
-        
-
-        // keeping most frequents kmers
-        if(v>0)
-            print("Number of kmer found: " + std::to_string(count.size()), tab_level);
-        
-        // Either keep the most frequent kmers or keep solid kmers.
-        pair_vector first_n_vector;
-        if(solid_km != 0){
-            if(v>0)
-                print("Keeping solid k-mer",tab_level);
-            first_n_vector = get_solid_kmers(count, solid_km);
+        // Checking if we can sample the requested number of sequences, else return the whole set
+        uint64_t sequence_set_size = length(seqs);
+        if(sn > sequence_set_size){ 
+            std::cerr << warning << "Sequence set too small for the requested sample size\n";
+            std::cerr << warning << "The whole set will be used.\n" ;
+            sn = sequence_set_size;
         }
-        else{
-            if(v>0)
-                print("Keeping most frequent k-mer",tab_level);
-            first_n_vector = get_most_frequent(count, limit);
-        }
-        
-        if(v>0)
-            print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
-        
 
-        // Exporting exact kmer count, if required
-        if(not exact_out.empty() ){
+        // general flag for file output
+        bool success = true;
+        
+        // performing ressearch on both ends
+        std::array<std::string, 2 > ends = {"start","end"};
+        
+        bool bottom = false; // checking if we search top adapter(start) or bottom adapter (end)
+        for(std::string which_end: ends){
+
+            tab_level += 1;
+            if(v>0){
+                print("Working on " + which_end + " adapter",tab_level - 1);
+                // sample and cut sequences to required length
+                print("Sampling",tab_level);
+            }
+            sequence_set_type sample = sampleSequences(seqs, sn, sl, bottom, v);
+
+
+            // counting k-mers on the sampled sequences
             if(v>0)
-                print("Exporting exact kmer count",tab_level);
-            success = exportCounter(first_n_vector, k, exact_out + "." + which_end );
+                print("Exact k-mer count",tab_level);
+            counter count = count_kmers(sample, k, lc, kmer_set);
+            
+
+            // keeping most frequents kmers
+            if(v>0)
+                print("Number of kmer found: " + std::to_string(count.size()), tab_level);
+            
+            // Either keep the most frequent kmers or keep solid kmers.
+            pair_vector first_n_vector;
+            if(solid_km != 0){
+                if(v>0)
+                    print("Keeping solid k-mer",tab_level);
+                first_n_vector = get_solid_kmers(count, solid_km);
+            }
+            else{
+                if(v>0)
+                    print("Keeping most frequent k-mer",tab_level);
+                first_n_vector = get_most_frequent(count, limit);
+            }
+            
+            if(v>0)
+                print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
+            
+
+            // Exporting exact kmer count, if required
+            if(not exact_out.empty() ){
+                if(v>0)
+                    print("Exporting exact kmer count",tab_level);
+                success = exportCounter(first_n_vector, k, exact_out + run_suffix + "." + which_end );
+                if(!success){
+                    std::cerr << "Error: Failed to export exact k-mer count" << std::endl ;
+                    return(1);
+                }
+            }
+
+            // Counting with at most 2 errors
+            if(v>0)
+                print("Approximate k-mer count",tab_level);
+            counter error_counter = errorCount(sample, first_n_vector, nb_thread, k, v);
+            pair_vector sorted_error_count = get_most_frequent(error_counter, limit);
+
+            if(v>0)
+                print("Exporting approximate count",tab_level);
+            success = exportCounter(sorted_error_count,k, output + run_suffix + "." + which_end );
             if(!success){
-                std::cerr << "Error: Failed to export exact k-mer count" << std::endl ;
-                return(1);
-            }
-        }
-
-        // Counting with at most 2 errors
-        if(v>0)
-            print("Approximate k-mer count",tab_level);
-        counter error_counter = errorCount(sample, first_n_vector, nb_thread, k, v);
-        pair_vector sorted_error_count = get_most_frequent(error_counter, limit);
-
-        if(v>0)
-            print("Exporting approximate count",tab_level);
-        success = exportCounter(sorted_error_count,k, output+ "." + which_end );
-        if(!success){
-                std::cerr << "Error: Failed to export approximate k-mer count" << std::endl ;
-                return(1);
+                    std::cerr << "Error: Failed to export approximate k-mer count" << std::endl ;
+                    return(1);
             }
 
-        // Print a warning in stderr if we think adapter may have been trimmed.
-        if(sorted_error_count[0].second < FREQ_THRESHOLD_WARNING * sn){
-            std::cerr << warning << "The most frequent kmer has been found in less than 10% of the reads " << which_end <<"s after approximate count. ";
-            std::cerr << "(" << sorted_error_count[0].second << "/" << sn << " sequences)" <<std::endl;
-            std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
-        }
+            // Print a warning in stderr if we think adapter may have been trimmed.
+            if(sorted_error_count[0].second < FREQ_THRESHOLD_WARNING * sn){
+                std::cerr << warning << "The most frequent kmer has been found in less than ";
+                std::cerr << std::round(10000 * FREQ_THRESHOLD_WARNING)/100;
+                std::cerr << "% of the reads " << which_end <<"s after approximate count. ";
+                std::cerr << "(" << sorted_error_count[0].second << "/" << sn << " sequences)" <<std::endl;
+                std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
+            }
 
-        if(v>0)
-            print("Done",tab_level);
-        
-        clear(sample);
-        
-        // Shall we process read end ?
-        if(skip_end){
             if(v>0)
-                print("Skipping end adapter ressearch");
-                break;
+                print("Done",tab_level);
+            
+            clear(sample);
+            
+            // Shall we process read end ?
+            if(skip_end){
+                if(v>0)
+                    print("Skipping end adapter ressearch");
+                    break;
+            }
+            else{
+                bottom = true;
+            }
+            
+            tab_level -= 1;
         }
-        else{
-            bottom = true;
-        }
-        
-        tab_level -= 1;
     }
-    
 
     return 0;
 }
