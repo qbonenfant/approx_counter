@@ -34,7 +34,8 @@ using index_t = Index<StringSet<DnaString>, BidirectionalIndex<FMIndex<void,TFas
 // counter type, using unordered map.
 using counter = std::unordered_map<uint64_t,uint64_t>;
 // pair vector
-using pair_vector = std::vector<std::pair<uint64_t,uint64_t> > ;
+using int_pair = std::pair<uint64_t,uint64_t>;
+using pair_vector = std::vector<int_pair> ;
 // type of sequence set
 using sequence_set_type = StringSet<DnaString> ;
 // vector of boolean used to keep track of kmer positions count.
@@ -236,6 +237,78 @@ inline  bool haveLowComplexity(uint64_t kmer, uint8_t k, float threshold){
 }
 
 
+
+/**
+    Return the complexity of a kmer
+    Our score is derived from 2006 DUST publication on
+    fast DNA sequence masking
+    https://doi.org/10.1089/cmb.2006.13.1028
+    @param the kmer to test, in 2 bit representation, cast as an uint64_t int
+    @param k the size of said kmer
+    @return True if the kmer contains low complexity region
+*/
+float getComplexity(uint64_t kmer, uint8_t k){
+    
+    uint64_t counts[16] = { 0 }; // 16 possibles dimers
+    // reading using sliding window of 2
+    for(int i = 0; i < k-1; i++){
+        // storing dimers as 2 * 2 bits
+        uint8_t c =  kmer & 15;
+        // removing last element of the k-mer
+        kmer >>=2;
+        // updating value of dimer count
+        counts[c]++;
+    }
+
+    float s = 0;
+    size_t sum = 0;
+    for(auto v:counts){
+        sum +=  v * (v-1);  
+    }
+    s =  sum / float(2 * (k-2));
+    return s;
+}
+
+/**
+    Object used to compare two k-mer count.
+    Such object is needed because k-mer size is
+    a required parameter that can't just be passed
+    to a delegate function.
+*/
+struct CompareCount{
+    // Constructor
+    CompareCount(int k) { this->k = k; }    
+    /*  Kmer counter comparison function
+    @param a, first count object
+    @param b, second count object
+    @return is a smaller than b
+    */
+    bool operator () (int_pair a, int_pair b){
+        // If counts are equals
+        if(a.second == b.second){
+            // sort by complexity
+            float a_comp = getComplexity(a.first, this->k);
+            float b_comp = getComplexity(b.first, this->k);
+            // if still equal, use decreasing lexicographic order
+            if(a_comp == b_comp){
+                return(a.first > b.first);
+            }
+            else{
+                return(a_comp < b_comp);    
+            }
+            
+        }
+        // if not, just regular count-based comparison.
+        else{
+            return(a.second>b.second);
+        }
+    }
+    // Defining local k
+    int k;
+};
+
+
+
 /**
     Check if the kmer is autorised or not
     @param the kmer to test, in 2 bit representation, cast as an uint64_t int
@@ -301,10 +374,11 @@ pair_vector get_solid_kmers(counter & count_map, uint64_t solid_km){
     @param number of kmers to return
     @return vector of pair containing the most frequent kmers and their associated count.
 */
-pair_vector get_most_frequent(counter & count_map, uint64_t limit){
+pair_vector get_most_frequent(counter & count_map, uint64_t limit, int k){
 
     pair_vector kmer_vec(std::make_move_iterator(count_map.begin()), std::make_move_iterator(count_map.end()));
-    std::sort(kmer_vec.begin(), kmer_vec.end(), [](auto x, auto y){ return x.second > y.second;} );
+    //std::sort(kmer_vec.begin(), kmer_vec.end(), [](auto x, auto y){ return x.second > y.second;} );
+    std::sort(kmer_vec.begin(), kmer_vec.end(), CompareCount(k) );
     if(kmer_vec.size() > limit){
         kmer_vec.resize(limit);
     }
@@ -343,10 +417,10 @@ sequence_set_type sampleSequences(sequence_set_type & sequence_set, uint64_t nb_
     // display
     if(v>0){
         if(bot){
-            print("Sampling the ends of reads",1);
+            print("Sampling the ends of reads", 1);
         }
         else{
-            print("Sampling the start of reads",1);
+            print("Sampling the start of reads", 1);
         }
     }
 
@@ -493,13 +567,7 @@ counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, ui
 }
 
 
-
-
-int main(int argc, char const ** argv)
-{
-
-    // Setup ArgumentParser.
-    seqan::ArgumentParser parser("adaptFinder");
+seqan::ArgumentParser::ParseResult get_args(seqan::ArgumentParser & parser, int argc, char const ** argv){
 
     addArgument(parser, seqan::ArgParseArgument(
         seqan::ArgParseArgument::STRING, "input filename"));
@@ -562,6 +630,18 @@ int main(int argc, char const ** argv)
     // Parser command line.
     seqan::ArgumentParser::ParseResult res = seqan::parse(parser, argc, argv);
 
+    return(res);
+
+}
+
+
+int main(int argc, char const ** argv)
+{
+    // Setup ArgumentParser.
+    seqan::ArgumentParser parser("adaptFinder");
+    // Parsing
+    seqan::ArgumentParser::ParseResult res = get_args(parser, argc, argv);
+    
     // If parsing was not successful then exit with code 1. if there were errors.
     // Otherwise, exit with code 0 (e.g. help was printed).
     if (res != seqan::ArgumentParser::PARSE_OK)
@@ -582,7 +662,6 @@ int main(int argc, char const ** argv)
     uint64_t v = 1;          // verbosity
     bool skip_end = false;   // skip end adapter ressearch
     uint64_t nb_of_runs = 1; // Number of counts to run
-
 
 
     getOptionValue(config_file, parser, "conf");
@@ -624,6 +703,9 @@ int main(int argc, char const ** argv)
     // input file, always required
     std::string input_file;
     getArgumentValue(input_file, parser, 0);
+
+    // Adjusting "multi run" verbosity to avoid flooding stdout.
+    int mr_v = nb_of_runs >1 ? 0 : v;
 
     // Set of forbidden k-mers.
     kmer_set_t kmer_set;
@@ -674,10 +756,13 @@ int main(int argc, char const ** argv)
     SeqFileIn seqFileIn(toCString(input_file));
     readRecords(ids, seqs, seqFileIn);
 
+    // MAIN LOOP: STARTING K-MER COUNTING
     std::string run_suffix = "";
     for(uint64_t current_run = 0; current_run < nb_of_runs; current_run++){
         // If we build run than one count, add a suffix
         if(nb_of_runs > 1){
+            if(v>0)
+                std::cout << "Starting run number " << current_run << std::endl;
             run_suffix = "_" + std::to_string(current_run);
         }
         // Checking if we can sample the requested number of sequences, else return the whole set
@@ -698,45 +783,49 @@ int main(int argc, char const ** argv)
         for(std::string which_end: ends){
 
             tab_level += 1;
-            if(v>0){
-                print("Working on " + which_end + " adapter",tab_level - 1);
+            if(mr_v>0){
+                print("Working on " + which_end + " adapter", tab_level - 1);
                 // sample and cut sequences to required length
                 print("Sampling",tab_level);
             }
-            sequence_set_type sample = sampleSequences(seqs, sn, sl, bottom, v);
+            sequence_set_type sample = sampleSequences(seqs, sn, sl, bottom, mr_v);
 
 
             // counting k-mers on the sampled sequences
-            if(v>0)
-                print("Exact k-mer count",tab_level);
+            if(mr_v>0)
+                print("Exact k-mer count", tab_level);
             counter count = count_kmers(sample, k, lc, kmer_set);
             
+            //  DEBUG
+            /*pair_vector all_kmer = get_most_frequent(count, sequence_set_size, k);
+            exportCounter(all_kmer, k, "all_kmers" + run_suffix + ".txt");
+            */
 
             // keeping most frequents kmers
-            if(v>0)
+            if(mr_v>0)
                 print("Number of kmer found: " + std::to_string(count.size()), tab_level);
             
             // Either keep the most frequent kmers or keep solid kmers.
             pair_vector first_n_vector;
             if(solid_km != 0){
-                if(v>0)
-                    print("Keeping solid k-mer",tab_level);
+                if(mr_v>0)
+                    print("Keeping solid k-mer", tab_level);
                 first_n_vector = get_solid_kmers(count, solid_km);
             }
             else{
-                if(v>0)
-                    print("Keeping most frequent k-mer",tab_level);
-                first_n_vector = get_most_frequent(count, limit);
+                if(mr_v>0)
+                    print("Keeping most frequent k-mer", tab_level);
+                first_n_vector = get_most_frequent(count, limit, k);
             }
             
-            if(v>0)
+            if(mr_v>0)
                 print("Number of kmer kept:  " + std::to_string(first_n_vector.size()), tab_level ) ;
             
 
             // Exporting exact kmer count, if required
             if(not exact_out.empty() ){
-                if(v>0)
-                    print("Exporting exact kmer count",tab_level);
+                if(mr_v>0)
+                    print("Exporting exact kmer count", tab_level);
                 success = exportCounter(first_n_vector, k, exact_out + run_suffix + "." + which_end );
                 if(!success){
                     std::cerr << "Error: Failed to export exact k-mer count" << std::endl ;
@@ -745,12 +834,12 @@ int main(int argc, char const ** argv)
             }
 
             // Counting with at most 2 errors
-            if(v>0)
+            if(mr_v>0)
                 print("Approximate k-mer count",tab_level);
-            counter error_counter = errorCount(sample, first_n_vector, nb_thread, k, v);
-            pair_vector sorted_error_count = get_most_frequent(error_counter, limit);
+            counter error_counter = errorCount(sample, first_n_vector, nb_thread, k, mr_v);
+            pair_vector sorted_error_count = get_most_frequent(error_counter, limit, k);
 
-            if(v>0)
+            if(mr_v>0)
                 print("Exporting approximate count",tab_level);
             success = exportCounter(sorted_error_count,k, output + run_suffix + "." + which_end );
             if(!success){
@@ -767,14 +856,14 @@ int main(int argc, char const ** argv)
                 std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
             }
 
-            if(v>0)
+            if(mr_v>0)
                 print("Done",tab_level);
             
             clear(sample);
             
             // Shall we process read end ?
             if(skip_end){
-                if(v>0)
+                if(mr_v>0)
                     print("Skipping end adapter ressearch");
                     break;
             }
