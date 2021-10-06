@@ -472,7 +472,7 @@ counter count_kmers(sequence_set_type & sequences, uint8_t k, float threshold, k
     for(auto seq: sequences){
         // First kmer
         uint64_t n = dna2int(DnaString(prefix(seq,k-1)));
-        int i = k-1;
+        unsigned i = k-1;
         while(i < length(seq)){ 
             
             n <<= 2; 
@@ -523,15 +523,17 @@ counter errorCount( sequence_set_type & sequences, pair_vector & exact_count, ui
         // Delegate function for SeqAn find function (process occurences)
         auto delegateParallel = [& tcount](auto & iter, const DnaString & needle, int errors)
         {
+            (void)needle; // casting to void to avoid "unused variable" warning
+            // Needle is required for the delegate to be accepted but is not needed in this program.
+
             for (auto occ : getOccurrences(iter)){
-                
                 uint64_t read_id = getValueI1(occ);
                 tcount[errors][read_id] = true;
                 }
         };
 
         #pragma omp for schedule(dynamic)
-        for(int km_id=0; km_id<length(exact_count); km_id++)
+        for(unsigned km_id=0; km_id<length(exact_count); km_id++)
         {
             
             /*  Supposing a kmer is very unlikely to be twice in the same read start
@@ -656,9 +658,9 @@ int main(int argc, char const ** argv)
     uint64_t nb_thread = 4;  // default number of thread
     uint64_t k = 16;         // kmer size, 2<= k <= 32
     uint64_t sl = 100 ;      // sequence sampling size
-    uint64_t sn = 10000;     // number of sequence sampled
+    uint64_t sn = 20000;     // number of sequence sampled
     uint64_t limit = 500;    // number of kmers to keep.
-    double lc = 1.5;         // low complexity filter threshold, allow all known adapters to pass.
+    double lc = 1.2;         // low complexity filter threshold, allow all known adapters to pass.
     uint64_t v = 1;          // verbosity
     bool skip_end = false;   // skip end adapter ressearch
     uint64_t nb_of_runs = 1; // Number of counts to run
@@ -705,8 +707,10 @@ int main(int argc, char const ** argv)
     getArgumentValue(input_file, parser, 0);
 
     // Adjusting "multi run" verbosity to avoid flooding stdout.
-    int mr_v = nb_of_runs >1 ? 0 : v;
-
+    int mr_v = 0;
+    if(nb_of_runs >1){
+        mr_v =  v;
+    }
     // Set of forbidden k-mers.
     kmer_set_t kmer_set;
     if(not forbid_kmer.empty()){
@@ -733,6 +737,7 @@ int main(int argc, char const ** argv)
             std::cout << "Solid kmers:           " << solid_km << std::endl;
         }
         std::cout << "Verbosity level:       " << v         << std::endl;
+        std::cout << "Multi-run verbosity:   " << mr_v      << std::endl;
     }
 
     // number of tab to display
@@ -863,9 +868,10 @@ int main(int argc, char const ** argv)
             
             // Shall we process read end ?
             if(skip_end){
-                if(mr_v>0)
+                if(mr_v>0){
                     print("Skipping end adapter ressearch");
                     break;
+                }
             }
             else{
                 bottom = true;

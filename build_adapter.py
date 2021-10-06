@@ -1,5 +1,6 @@
 """
 Standalone script for adapter reconstruction from k-mer count file.
+This version is not suitable for multi-run count file folders.
 """
 
 import os
