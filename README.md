@@ -1,27 +1,22 @@
-# adaptFinder
-*name will probably change soon*
+# Approx_counter
 
-This is a tool designed to infer the sequences of [Oxford Nanopore](https://nanoporetech.com/) adaptaters using approximate kmer count.
-In the case the sequences of the adapter is unknown, and not present in the Porechop adapter list, they can be hard to remove.
-My goal here is to provide a simple tool able to infer the adapter sequence using kmer counting.
-
+This is a tool designed to count k-mers from the ends of the sequences of a multi fasta/fastq file, allowing for up to 2 errors.
+It was developped to be paired with Porechop_ABI, to help infer the sequences of [Oxford Nanopore](https://nanoporetech.com/) adaptaters using approximate kmer count.
 Since adapter are short sequence at the ends of the read, the kmer composing them should be extremely frequent in those area.
 That's why we count kmers allowing an edit distance up to 2 between the ressearched kmer and an indexed sample of the reads.
+My goal here is to provide a simple tool able to perform this task.
 
-A simple assembly method can then be used to reconstruct the potential adapter.
-
-
+A simple assembly method can then be used to reconstruct the potential adapter, more information can be found in the Porechop_ABI repo.
 
 
 ## Requirement
 - C++ (11+)
 - SeqAn (2.4.0+)
-- networkx
 
 ## Compiling
 In order to compile this file, I recommend using the following command
 ~~~
-g++ -std=c++14 -fopenmp  -O3 -DNDEBUG -march=native  -mtune=native  adaptFinder.cpp -lrt -o adaptFinder
+g++ -std=c++14 -fopenmp  -O3 -DNDEBUG -march=native  -mtune=native  approx_counter.cpp -lrt -o approx_counter
 ~~~
 
 ## Usage
@@ -53,7 +48,7 @@ OPTIONS
           path to the output file, default is ./out.txt
 
 ## Example
-adaptFinder file.fasta -k 16 --sample_n 20000 --sample_length 90 -nt 4 lim 1000 -e exact_out.txt -o approx_out.txt
+approx_counter file.fasta -k 16 --sample_n 20000 --sample_length 90 -nt 4 lim 1000 -e exact_out.txt -o approx_out.txt
 
 
 # License
