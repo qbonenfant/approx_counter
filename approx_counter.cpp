@@ -658,7 +658,7 @@ int main(int argc, char const ** argv)
     uint64_t nb_thread = 4;  // default number of thread
     uint64_t k = 16;         // kmer size, 2<= k <= 32
     uint64_t sl = 100 ;      // sequence sampling size
-    uint64_t sn = 20000;     // number of sequence sampled
+    uint64_t sn = 40000;     // number of sequence sampled
     uint64_t limit = 500;    // number of kmers to keep.
     double lc = 1.2;         // low complexity filter threshold, allow all known adapters to pass.
     uint64_t v = 1;          // verbosity
@@ -852,14 +852,14 @@ int main(int argc, char const ** argv)
                     return(1);
             }
 
-            // Print a warning in stderr if we think adapter may have been trimmed.
+            /*// Print a warning in stderr if we think adapter may have been trimmed.
             if(sorted_error_count[0].second < FREQ_THRESHOLD_WARNING * sn){
                 std::cerr << warning << "The most frequent kmer has been found in less than ";
                 std::cerr << std::round(10000 * FREQ_THRESHOLD_WARNING)/100;
                 std::cerr << "% of the reads " << which_end <<"s after approximate count. ";
                 std::cerr << "(" << sorted_error_count[0].second << "/" << sn << " sequences)" <<std::endl;
                 std::cerr << warning << "It could mean this file is already trimmed or the sample do not contains detectable adapters." << std::endl;
-            }
+            }*/
 
             if(mr_v>0)
                 print("Done",tab_level);
